@@ -1,8 +1,8 @@
-# SigmaQL
+# ForgeQL
 
-SigmaQL is a lightweight, expressive, JSON-driven query engine inspired by GraphQL — but intentionally simpler, faster, and easier to integrate into backend systems.
+ForgeQL is a lightweight, expressive, JSON-driven query engine inspired by GraphQL — but intentionally simpler, faster, and easier to integrate into backend systems.
 
-Built with **Spring Boot**, SigmaQL exposes a single `/query` endpoint that accepts structured JSON describing what data the client wants. The backend parses the request, validates it, compiles it into SQL, executes it safely, and returns clean nested JSON.
+Built with **Spring Boot**, ForgeQL exposes a single `/query` endpoint that accepts structured JSON describing what data the client wants. The backend parses the request, validates it, compiles it into SQL, executes it safely, and returns clean nested JSON.
 
 ---
 
@@ -131,8 +131,8 @@ SQL results are transformed into nested JSON matching the structure of the query
 
 ### **1. Clone the repo**
 ```bash
-git clone https://github.com/Agorbanoff/SigmaQL.git
-cd SigmaQL
+git clone https://github.com/Agorbanoff/ForgeQL.git
+cd ForgeQL
 ```
 
 ### **2. Build the project**
@@ -144,7 +144,7 @@ mvn clean install
 In `application.properties`:
 
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/sigmaql
+spring.datasource.url=jdbc:postgresql://localhost:5432/ForgeQL
 spring.datasource.username=postgres
 spring.datasource.password=password
 spring.datasource.driver-class-name=org.postgresql.Driver
@@ -198,4 +198,4 @@ curl -X POST http://localhost:8080/query \
 # 🤝 Contributing
 
 Pull requests and ideas are welcome.  
-SigmaQL is designed as an educational project demonstrating architecture-level backend design, query parsing, and dynamic SQL compilation.
+ForgeQL is designed as an educational project demonstrating architecture-level backend design, query parsing, and dynamic SQL compilation.

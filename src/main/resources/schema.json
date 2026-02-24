@@ -1,0 +1,30 @@
+{
+  "entities": {
+    "users": {
+      "table": "users",
+      "primaryKey": "id",
+      "fields": ["id", "username", "email", "age"],
+      "relations": {
+        "posts": {
+          "type": "one-to-many",
+          "target": "posts",
+          "localKey": "id",
+          "foreignKey": "user_id"
+        }
+      }
+    },
+    "posts": {
+      "table": "posts",
+      "primaryKey": "id",
+      "fields": ["id", "user_id", "title", "created_at", "likes"],
+      "relations": {
+        "user": {
+          "type": "many-to-one",
+          "target": "users",
+          "localKey": "user_id",
+          "foreignKey": "id"
+        }
+      }
+    }
+  }
+}

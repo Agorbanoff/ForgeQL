@@ -27,7 +27,7 @@ public class QueryService {
         filterParser.filterParser(query);
         includeParser.includeParser(query);
         queryParser.queryParser(query);
-        queryValidator.queryValidator(query);
+        //queryValidator.queryValidator(query);
         return query;
     }
 }

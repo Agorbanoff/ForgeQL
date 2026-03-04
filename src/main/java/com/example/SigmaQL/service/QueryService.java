@@ -1,33 +1,28 @@
 package com.example.SigmaQL.service;
 
-import com.example.SigmaQL.parser.FilterParser;
-import com.example.SigmaQL.parser.IncludeParser;
-import com.example.SigmaQL.parser.QueryParser;
-import com.example.SigmaQL.parser.QueryValidator;
+import com.example.SigmaQL.common.exceptions.InvalidQueryException;
+import com.example.SigmaQL.dtos.req.QueryReqDTO;
+import com.example.SigmaQL.sql.SqlBuilder;
+import com.example.SigmaQL.sql.SqlPlan;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
 public class QueryService {
 
-    private final FilterParser filterParser;
-    private final IncludeParser includeParser;
-    private final QueryParser queryParser;
-    private final QueryValidator queryValidator;
+    private final JdbcTemplate jdbcTemplate;
+    private final SqlBuilder sqlBuilder;
 
-    public QueryService(FilterParser filterParser, IncludeParser includeParser, QueryParser queryParser, QueryValidator queryValidator) {
-        this.filterParser = filterParser;
-        this.includeParser = includeParser;
-         this.queryParser = queryParser;
-        this.queryValidator = queryValidator;
+    public QueryService(JdbcTemplate jdbcTemplate, SqlBuilder sqlBuilder) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.sqlBuilder = sqlBuilder;
     }
 
-    public Map<String, Object> executeQuery(Map<String, Object> query) {
-        filterParser.filterParser(query);
-        includeParser.includeParser(query);
-        queryParser.queryParser(query);
-        //queryValidator.queryValidator(query);
-        return query;
+    public List<Map<String, Object>> execute(QueryReqDTO dto) throws InvalidQueryException {
+        SqlPlan plan = sqlBuilder.build(dto);
+        return jdbcTemplate.queryForList(plan.getSql(), plan.getParams().toArray());
     }
 }

@@ -1,6 +1,7 @@
 package com.example.SigmaQL.service;
 
 import com.example.SigmaQL.common.exceptions.InvalidQueryException;
+import com.example.SigmaQL.common.exceptions.UnknownFieldException;
 import com.example.SigmaQL.dtos.req.QueryReqDTO;
 import com.example.SigmaQL.sql.SqlBuilder;
 import com.example.SigmaQL.sql.SqlPlan;
@@ -21,7 +22,7 @@ public class QueryService {
         this.sqlBuilder = sqlBuilder;
     }
 
-    public List<Map<String, Object>> execute(QueryReqDTO dto) throws InvalidQueryException {
+    public List<Map<String, Object>> execute(QueryReqDTO dto) throws InvalidQueryException, UnknownFieldException {
         SqlPlan plan = sqlBuilder.build(dto);
         return jdbcTemplate.queryForList(plan.getSql(), plan.getParams().toArray());
     }

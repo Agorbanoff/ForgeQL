@@ -23,8 +23,7 @@ public class SqlController {
     }
 
     @PostMapping
-    public List<Map<String, Object>> query(@RequestBody QueryReqDTO dto)
-            throws InvalidQueryException, UnknownFieldException {
+    public List<Map<String, Object>> query(@RequestBody QueryReqDTO dto) throws InvalidQueryException, UnknownFieldException {
         validator.validate(dto);
         return service.execute(dto);
     }

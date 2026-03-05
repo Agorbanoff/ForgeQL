@@ -2,7 +2,9 @@ package com.example.SigmaQL.sql;
 
 import com.example.SigmaQL.common.exceptions.InvalidQueryException;
 import com.example.SigmaQL.common.exceptions.UnknownFieldException;
+import com.example.SigmaQL.dtos.req.IncludeReqDTO;
 import com.example.SigmaQL.dtos.req.QueryReqDTO;
+import com.example.SigmaQL.registry.RelationSchema;
 import com.example.SigmaQL.registry.SchemaRegistry;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -101,8 +103,10 @@ public class SqlBuilder {
                             params.add(list.get(0));
                             params.add(list.get(1));
                         } else {
-                            throw new InvalidQueryException("between expects list of 2 values for field: " + field,
-                                    HttpStatus.BAD_REQUEST);
+                            throw new InvalidQueryException(
+                                    "between expects list of 2 values for field: " + field,
+                                    HttpStatus.BAD_REQUEST
+                            );
                         }
                     }
                     default -> throw new InvalidQueryException("Unknown operator: " + opKey, HttpStatus.BAD_REQUEST);
@@ -163,5 +167,78 @@ public class SqlBuilder {
         if (limit != null) { sb.append(" LIMIT ?"); params.add(limit); }
         if (offset != null) { sb.append(" OFFSET ?"); params.add(offset); }
         return sb.toString();
+    }
+
+    public SqlPlan buildIncludePlan(
+            String parentEntity,
+            RelationSchema rel,
+            Collection<Object> parentKeys,
+            IncludeReqDTO include
+    ) throws InvalidQueryException, UnknownFieldException {
+
+        if (parentKeys == null || parentKeys.isEmpty()) {
+            return new SqlPlan("SELECT 1 WHERE 1=0", List.of());
+        }
+
+        String childEntity = rel.getTarget();
+        String childTable = schemaRegistry.getTable(childEntity);
+        if (childTable == null || childTable.isBlank()) {
+            throw new InvalidQueryException("Table is missing for entity: " + childEntity, HttpStatus.BAD_REQUEST);
+        }
+
+        List<Object> params = new ArrayList<>();
+
+        if (include.getFields() == null || include.getFields().isEmpty()) {
+            throw new InvalidQueryException("include.fields is required for " + childEntity, HttpStatus.BAD_REQUEST);
+        }
+
+        StringJoiner sj = new StringJoiner(", ");
+        for (String f : include.getFields()) {
+            if (f == null || f.isBlank()) continue;
+            schemaRegistry.assertFieldExists(childEntity, f);
+            sj.add(childTable + "." + f);
+        }
+
+        String selectCols = sj.toString();
+        if (selectCols.isBlank()) {
+            throw new InvalidQueryException("include.fields is required for " + childEntity, HttpStatus.BAD_REQUEST);
+        }
+
+        String select = "SELECT " + selectCols;
+
+        String matchColumn = resolveMatchColumn(rel);
+
+        StringJoiner in = new StringJoiner(", ", "(", ")");
+        for (Object k : parentKeys) {
+            in.add("?");
+            params.add(k);
+        }
+
+        String where = " WHERE " + childTable + "." + matchColumn + " IN " + in;
+
+        String extra = buildWhere(childEntity, childTable, include.getFilter(), params);
+        if (!extra.isBlank()) {
+            where = where + " AND " + extra.substring(" WHERE ".length());
+        }
+
+        String order = buildOrderBy(childEntity, childTable, include.getOrderBy());
+        String paging = buildPaging(include.getLimit(), include.getOffset(), params);
+
+        return new SqlPlan(select + " FROM " + childTable + where + order + paging, params);
+    }
+
+    private static String resolveMatchColumn(RelationSchema relationSchema) throws InvalidQueryException {
+        String relType = relationSchema.getType() == null ? "" : relationSchema.getType().trim().toLowerCase(Locale.ROOT);
+
+        if (relType.equals("one-to-many") || relType.equals("many-to-one")) {
+            String jc = relationSchema.getForeignKey();
+            if (jc == null || jc.isBlank()) {
+                throw new InvalidQueryException("Relation joinColumn is missing for target: " + relationSchema.getTarget(),
+                        HttpStatus.BAD_REQUEST);
+            }
+            return jc;
+        }
+
+        throw new InvalidQueryException("Unsupported relation type: " + relationSchema.getType(), HttpStatus.BAD_REQUEST);
     }
 }

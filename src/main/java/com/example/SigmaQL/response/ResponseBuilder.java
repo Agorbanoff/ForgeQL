@@ -128,11 +128,11 @@ public class ResponseBuilder {
             String parentEntity,
             List<Map<String, Object>> parentRows,
             String relationName,
-            RelationSchema rel,
+            RelationSchema relationSchema,
             IncludeReqDTO childReq,
             int depth
     ) throws InvalidQueryException, UnknownFieldException {
-        String parentLocalKey = rel.getLocalKey();
+        String parentLocalKey = relationSchema.getLocalKey();
 
         LinkedHashSet<Object> fkValues = new LinkedHashSet<>();
         for (Map<String, Object> r : parentRows) {
@@ -150,10 +150,10 @@ public class ResponseBuilder {
             throw new InvalidQueryException("Too many keys for include: " + fkValues.size(), HttpStatus.BAD_REQUEST);
         }
 
-        SqlPlan plan = sqlBuilder.buildIncludePlan(parentEntity, rel, fkValues, childReq);
+        SqlPlan plan = sqlBuilder.buildIncludePlan(parentEntity, relationSchema, fkValues, childReq);
         List<Map<String, Object>> children = jdbcTemplate.queryForList(plan.getSql(), plan.getParams().toArray());
 
-        String childPk = rel.getForeignKey();
+        String childPk = relationSchema.getForeignKey();
 
         Map<Object, Map<String, Object>> byPk = new HashMap<>();
         for (Map<String, Object> childRow : children) {
@@ -162,7 +162,7 @@ public class ResponseBuilder {
             if (pk != null) byPk.put(pk, childRow);
         }
 
-        String childEntity = rel.getTarget();
+        String childEntity = relationSchema.getTarget();
         if (childReq.getInclude() != null && !childReq.getInclude().isEmpty()) {
             List<Map<String, Object>> childList = new ArrayList<>(byPk.values());
             applyIncludesRecursive(childEntity, childList, childReq.getInclude(), depth + 1);

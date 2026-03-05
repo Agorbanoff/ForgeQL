@@ -186,18 +186,25 @@ public class SqlBuilder {
             throw new InvalidQueryException("Table is missing for entity: " + childEntity, HttpStatus.BAD_REQUEST);
         }
 
-        List<Object> params = new ArrayList<>();
-
         if (include.getFields() == null || include.getFields().isEmpty()) {
             throw new InvalidQueryException("include.fields is required for " + childEntity, HttpStatus.BAD_REQUEST);
         }
 
-        StringJoiner sj = new StringJoiner(", ");
+        String relType = rel.getType() == null ? "" : rel.getType().trim().toLowerCase(Locale.ROOT);
+
+        Set<String> cols = new LinkedHashSet<>();
         for (String f : include.getFields()) {
             if (f == null || f.isBlank()) continue;
             schemaRegistry.assertFieldExists(childEntity, f);
-            sj.add(childTable + "." + f);
+            cols.add(f);
         }
+
+        String matchColumn = resolveMatchColumn(relType, rel);
+
+        cols.add(matchColumn);
+
+        StringJoiner sj = new StringJoiner(", ");
+        for (String c : cols) sj.add(childTable + "." + c);
 
         String selectCols = sj.toString();
         if (selectCols.isBlank()) {
@@ -206,7 +213,7 @@ public class SqlBuilder {
 
         String select = "SELECT " + selectCols;
 
-        String matchColumn = resolveMatchColumn(rel);
+        List<Object> params = new ArrayList<>();
 
         StringJoiner in = new StringJoiner(", ", "(", ")");
         for (Object k : parentKeys) {
@@ -227,18 +234,23 @@ public class SqlBuilder {
         return new SqlPlan(select + " FROM " + childTable + where + order + paging, params);
     }
 
-    private static String resolveMatchColumn(RelationSchema relationSchema) throws InvalidQueryException {
-        String relType = relationSchema.getType() == null ? "" : relationSchema.getType().trim().toLowerCase(Locale.ROOT);
-
-        if (relType.equals("one-to-many") || relType.equals("many-to-one")) {
-            String jc = relationSchema.getForeignKey();
-            if (jc == null || jc.isBlank()) {
-                throw new InvalidQueryException("Relation joinColumn is missing for target: " + relationSchema.getTarget(),
+    private static String resolveMatchColumn(String relType, RelationSchema rel) throws InvalidQueryException {
+        if (relType.equals("one-to-many")) {
+            if (rel.getForeignKey() == null || rel.getForeignKey().isBlank()) {
+                throw new InvalidQueryException("foreignKey is missing for relation target: " + rel.getTarget(),
                         HttpStatus.BAD_REQUEST);
             }
-            return jc;
+            return rel.getForeignKey();
         }
 
-        throw new InvalidQueryException("Unsupported relation type: " + relationSchema.getType(), HttpStatus.BAD_REQUEST);
+        if (relType.equals("many-to-one")) {
+            if (rel.getForeignKey() == null || rel.getForeignKey().isBlank()) {
+                throw new InvalidQueryException("foreignKey is missing for relation target: " + rel.getTarget(),
+                        HttpStatus.BAD_REQUEST);
+            }
+            return rel.getForeignKey();
+        }
+
+        throw new InvalidQueryException("Unsupported relation type: " + rel.getType(), HttpStatus.BAD_REQUEST);
     }
 }

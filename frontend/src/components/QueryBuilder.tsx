@@ -1,9 +1,19 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { schema } from '../data/schema'
 
 type EntityKey = keyof typeof schema.entities
 
-export function QueryBuilder() {
+type QueryBuilderProps = {
+  onRunQuery: (payload: unknown) => void | Promise<void>
+  loading: boolean
+}
+
+export function QueryBuilder({
+  onRunQuery,
+  loading,
+}: QueryBuilderProps) {
+  const entityNames = Object.keys(schema.entities) as EntityKey[]
+
   const [selectedEntity, setSelectedEntity] = useState<EntityKey>('users')
   const [selectedFields, setSelectedFields] = useState<string[]>([])
 
@@ -17,14 +27,28 @@ export function QueryBuilder() {
     )
   }
 
-  const query = {
-    entity: selectedEntity,
-    fields: selectedFields,
-  }
+  const query = useMemo(
+    () => ({
+      entity: selectedEntity,
+      fields: selectedFields,
+    }),
+    [selectedEntity, selectedFields]
+  )
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Query Builder</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold">Query Builder</h2>
+
+        <button
+          type="button"
+          onClick={() => onRunQuery(query)}
+          disabled={loading || selectedFields.length === 0}
+          className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {loading ? 'Running...' : 'Run Query'}
+        </button>
+      </div>
 
       <div>
         <label className="text-sm text-zinc-400">Entity</label>
@@ -34,9 +58,9 @@ export function QueryBuilder() {
             setSelectedEntity(e.target.value as EntityKey)
             setSelectedFields([])
           }}
-          className="mt-1 w-full rounded-lg bg-zinc-800 p-2 text-white"
+          className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 p-2 text-white outline-none"
         >
-          {Object.keys(schema.entities).map((entityName) => (
+          {entityNames.map((entityName) => (
             <option key={entityName} value={entityName}>
               {entityName}
             </option>
@@ -50,6 +74,7 @@ export function QueryBuilder() {
           {entity.fields.map((field) => (
             <button
               key={field}
+              type="button"
               onClick={() => toggleField(field)}
               className={`rounded-md border px-2 py-1 text-sm ${
                 selectedFields.includes(field)
@@ -65,7 +90,7 @@ export function QueryBuilder() {
 
       <div>
         <p className="mb-2 text-sm text-zinc-400">Generated Query</p>
-        <pre className="overflow-auto rounded-lg bg-black p-3 text-xs text-green-400">
+        <pre className="overflow-auto rounded-xl border border-zinc-800 bg-black p-4 text-xs text-green-400">
           {JSON.stringify(query, null, 2)}
         </pre>
       </div>

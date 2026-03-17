@@ -1,3 +1,6 @@
+import { SchemaPanel } from './components/SchemaPanel'
+import { QueryBuilder } from './components/QueryBuilder'
+
 export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -9,16 +12,22 @@ export default function App() {
       </header>
 
       <main className="grid min-h-[calc(100vh-81px)] grid-cols-12 gap-4 p-4">
+        {/* LEFT - Schema */}
         <aside className="col-span-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <h2 className="mb-3 text-lg font-semibold">Schema</h2>
+          <SchemaPanel />
         </aside>
 
+        {/* MIDDLE - Query Builder */}
         <section className="col-span-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <h2 className="mb-3 text-lg font-semibold">Query Builder</h2>
+          <QueryBuilder />
         </section>
 
+        {/* RIGHT - Response */}
         <section className="col-span-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
           <h2 className="mb-3 text-lg font-semibold">Response</h2>
+          <p className="text-sm text-zinc-400">
+            Next: backend response preview.
+          </p>
         </section>
       </main>
     </div>

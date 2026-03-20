@@ -2,9 +2,11 @@ package com.example.SigmaQL.controller;
 
 import com.example.SigmaQL.common.exceptions.InvalidQueryException;
 import com.example.SigmaQL.common.exceptions.UnknownFieldException;
-import com.example.SigmaQL.dtos.req.QueryReqDTO;
+import com.example.SigmaQL.controller.dtos.req.QueryReqDTO;
 import com.example.SigmaQL.parser.QueryValidator;
 import com.example.SigmaQL.service.QueryService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,18 +17,19 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:5173")
 public class SqlController {
 
-    private final QueryValidator validator;
-    private final QueryService service;
+    private final QueryValidator queryValidator;
+    private final QueryService queryService;
 
-    public SqlController(QueryValidator validator, QueryService service) {
-        this.validator = validator;
-        this.service = service;
+    public SqlController(QueryValidator queryValidator, QueryService queryService) {
+        this.queryValidator = queryValidator;
+        this.queryService = queryService;
     }
 
     @PostMapping
-    public List<Map<String, Object>> query(@RequestBody QueryReqDTO dto)
-            throws InvalidQueryException, UnknownFieldException {
-        validator.validate(dto);
-        return service.execute(dto);
+    public ResponseEntity<List<Map<String, Object>>> query(@RequestBody QueryReqDTO dto) throws InvalidQueryException, UnknownFieldException {
+        queryValidator.validate(dto);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(queryService.execute(dto));
     }
 }

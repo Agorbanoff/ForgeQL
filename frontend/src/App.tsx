@@ -1,55 +1,53 @@
-import { useState } from 'react'
-import { SchemaPanel } from './components/SchemaPanel'
-import { QueryBuilder } from './components/QueryBuilder'
-import { ResponsePanel } from './components/ResponsePanel'
-import { runQuery } from './api/queryApi'
+import { Link, Route, Routes, useLocation } from 'react-router-dom'
+import PlaygroundPage from './pages/PlaygroundPage'
+import LoginPage from './pages/LoginPage'
+import SignUpPage from './pages/SignUpPage'
+import ConnectionRequestPage from './pages/ConnectionRequestPage'
 
 export default function App() {
-  const [responseData, setResponseData] = useState<unknown>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const location = useLocation()
 
-  async function handleRunQuery(payload: unknown) {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const data = await runQuery(payload)
-      setResponseData(data)
-    } catch (err) {
-      setResponseData(null)
-      setError(err instanceof Error ? err.message : 'Unknown error')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const navItems = [
+    { to: '/', label: 'Playground' },
+    { to: '/login', label: 'Log in' },
+    { to: '/signup', label: 'Sign up' },
+    { to: '/connection-request', label: 'DB Access' },
+  ]
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
-      <header className="border-b border-zinc-800 px-6 py-4">
-        <h1 className="text-2xl font-semibold">ForgeQL Playground</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          Build and test dynamic queries
-        </p>
+      <header className="border-b border-zinc-800">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <h1 className="text-xl font-semibold">ForgeQL</h1>
+
+          <nav className="flex flex-wrap gap-2">
+            {navItems.map((item) => {
+              const active = location.pathname === item.to
+
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`rounded-lg px-4 py-2 text-sm ${
+                    active
+                      ? 'bg-cyan-500 text-black'
+                      : 'border border-zinc-700 text-zinc-300'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
       </header>
 
-      <main className="grid min-h-[calc(100vh-81px)] grid-cols-12 gap-4 p-4">
-        <aside className="col-span-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <SchemaPanel />
-        </aside>
-
-        <section className="col-span-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <QueryBuilder onRunQuery={handleRunQuery} loading={loading} />
-        </section>
-
-        <section className="col-span-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <ResponsePanel
-            data={responseData}
-            error={error}
-            loading={loading}
-          />
-        </section>
-      </main>
+      <Routes>
+        <Route path="/" element={<PlaygroundPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
+        <Route path="/connection-request" element={<ConnectionRequestPage />} />
+      </Routes>
     </div>
   )
 }

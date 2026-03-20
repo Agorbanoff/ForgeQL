@@ -12,6 +12,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/query")
+@CrossOrigin(origins = "http://localhost:5173")
 public class SqlController {
 
     private final QueryValidator validator;
@@ -23,7 +24,8 @@ public class SqlController {
     }
 
     @PostMapping
-    public List<Map<String, Object>> query(@RequestBody QueryReqDTO dto) throws InvalidQueryException, UnknownFieldException {
+    public List<Map<String, Object>> query(@RequestBody QueryReqDTO dto)
+            throws InvalidQueryException, UnknownFieldException {
         validator.validate(dto);
         return service.execute(dto);
     }

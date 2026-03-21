@@ -1,4 +1,4 @@
-package com.example.SigmaQL.controller.dtos.req;
+package com.example.SigmaQL.controller.dtos.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,7 +10,8 @@ import java.util.Map;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class IncludeReqDTO {
+public class QueryReqDTO {
+    private String entity;
     private List<String> fields;
 
     private Map<String, Map<String, Object>> filter;

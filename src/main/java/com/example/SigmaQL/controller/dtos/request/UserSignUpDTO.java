@@ -1,4 +1,4 @@
-package com.example.SigmaQL.controller.dtos.req;
+package com.example.SigmaQL.controller.dtos.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

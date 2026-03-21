@@ -2,7 +2,7 @@ package com.example.SigmaQL.service;
 
 import com.example.SigmaQL.common.exceptions.InvalidQueryException;
 import com.example.SigmaQL.common.exceptions.UnknownFieldException;
-import com.example.SigmaQL.controller.dtos.req.QueryReqDTO;
+import com.example.SigmaQL.controller.dtos.request.QueryReqDTO;
 import com.example.SigmaQL.response.ResponseBuilder;
 import com.example.SigmaQL.sql.SqlBuilder;
 import com.example.SigmaQL.sql.SqlPlan;

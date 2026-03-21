@@ -2,9 +2,9 @@ package com.example.SigmaQL.service;
 
 import com.example.SigmaQL.common.exceptions.EmailAlreadyInUseException;
 import com.example.SigmaQL.common.exceptions.WrongCredentialsException;
-import com.example.SigmaQL.controller.dtos.req.UserLogInDTO;
-import com.example.SigmaQL.controller.dtos.req.UserSignUpDTO;
-import com.example.SigmaQL.controller.dtos.res.TokenResponseDTO;
+import com.example.SigmaQL.controller.dtos.request.UserLogInDTO;
+import com.example.SigmaQL.controller.dtos.request.UserSignUpDTO;
+import com.example.SigmaQL.controller.dtos.response.TokenResponseDTO;
 import com.example.SigmaQL.persistence.model.UserAccountEntity;
 import com.example.SigmaQL.persistence.repository.UserAccountRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;

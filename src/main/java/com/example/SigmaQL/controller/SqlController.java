@@ -2,7 +2,7 @@ package com.example.SigmaQL.controller;
 
 import com.example.SigmaQL.common.exceptions.InvalidQueryException;
 import com.example.SigmaQL.common.exceptions.UnknownFieldException;
-import com.example.SigmaQL.controller.dtos.req.QueryReqDTO;
+import com.example.SigmaQL.controller.dtos.request.QueryReqDTO;
 import com.example.SigmaQL.parser.QueryValidator;
 import com.example.SigmaQL.service.QueryService;
 import org.springframework.http.HttpStatus;

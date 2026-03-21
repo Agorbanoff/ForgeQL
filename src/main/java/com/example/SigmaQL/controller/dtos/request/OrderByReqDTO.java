@@ -1,4 +1,4 @@
-package com.example.SigmaQL.controller.dtos.req;
+package com.example.SigmaQL.controller.dtos.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

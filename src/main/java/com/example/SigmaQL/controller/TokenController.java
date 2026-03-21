@@ -1,10 +1,8 @@
 package com.example.SigmaQL.controller;
 
 import com.example.SigmaQL.common.exceptions.WrongCredentialsException;
-import com.example.SigmaQL.controller.dtos.req.RefreshTokenDTO;
-import com.example.SigmaQL.controller.dtos.res.TokenResponseDTO;
+import com.example.SigmaQL.controller.dtos.response.TokenResponseDTO;
 import com.example.SigmaQL.service.JwtService;
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

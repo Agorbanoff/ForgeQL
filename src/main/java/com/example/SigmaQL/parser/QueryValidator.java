@@ -2,8 +2,8 @@ package com.example.SigmaQL.parser;
 
 import com.example.SigmaQL.common.exceptions.InvalidQueryException;
 import com.example.SigmaQL.common.exceptions.UnknownFieldException;
-import com.example.SigmaQL.controller.dtos.req.IncludeReqDTO;
-import com.example.SigmaQL.controller.dtos.req.QueryReqDTO;
+import com.example.SigmaQL.controller.dtos.request.IncludeReqDTO;
+import com.example.SigmaQL.controller.dtos.request.QueryReqDTO;
 import com.example.SigmaQL.registry.RelationSchema;
 import com.example.SigmaQL.registry.SchemaRegistry;
 import org.springframework.http.HttpStatus;

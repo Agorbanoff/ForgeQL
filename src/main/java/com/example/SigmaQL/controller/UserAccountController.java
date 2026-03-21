@@ -3,10 +3,10 @@ package com.example.SigmaQL.controller;
 import com.example.SigmaQL.auth.filter.AuthenticatedUser;
 import com.example.SigmaQL.common.exceptions.EmailAlreadyInUseException;
 import com.example.SigmaQL.common.exceptions.WrongCredentialsException;
-import com.example.SigmaQL.controller.dtos.req.CurrentUserDTO;
-import com.example.SigmaQL.controller.dtos.req.UserLogInDTO;
-import com.example.SigmaQL.controller.dtos.req.UserSignUpDTO;
-import com.example.SigmaQL.controller.dtos.res.TokenResponseDTO;
+import com.example.SigmaQL.controller.dtos.request.CurrentUserDTO;
+import com.example.SigmaQL.controller.dtos.request.UserLogInDTO;
+import com.example.SigmaQL.controller.dtos.request.UserSignUpDTO;
+import com.example.SigmaQL.controller.dtos.response.TokenResponseDTO;
 import com.example.SigmaQL.service.AuthCookieService;
 import com.example.SigmaQL.service.UserAccountService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,33 +38,39 @@ public class UserAccountController {
     }
 
     @PostMapping(value = "/signup")
-    public ResponseEntity<TokenResponseDTO> signUp(@Valid @RequestBody UserSignUpDTO userSignUpDTO, HttpServletResponse httpServletResponse) throws EmailAlreadyInUseException {
+    public ResponseEntity<Void> signUp(@Valid @RequestBody UserSignUpDTO userSignUpDTO, HttpServletResponse httpServletResponse) throws EmailAlreadyInUseException {
         TokenResponseDTO tokenResponseDTO = userAccountService.signUp(userSignUpDTO);
 
         authCookieService.addRefreshTokenCookie(httpServletResponse, tokenResponseDTO.getRefreshToken());
+        authCookieService.addAccessTokenCookie(httpServletResponse, tokenResponseDTO.getAccessToken());
+
+        tokenResponseDTO.setAccessToken(null);
         tokenResponseDTO.setRefreshToken(null);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(tokenResponseDTO);
+                .build();
     }
 
     @PostMapping(value = "/login")
-    public ResponseEntity<TokenResponseDTO> logIn(@Valid @RequestBody UserLogInDTO userLogInDTO, HttpServletResponse httpServletResponse) throws WrongCredentialsException {
+    public ResponseEntity<Void> logIn(@Valid @RequestBody UserLogInDTO userLogInDTO, HttpServletResponse httpServletResponse) throws WrongCredentialsException {
         TokenResponseDTO tokenResponseDTO = userAccountService.logIn(userLogInDTO);
 
         authCookieService.addRefreshTokenCookie(httpServletResponse, tokenResponseDTO.getRefreshToken());
+        authCookieService.addAccessTokenCookie(httpServletResponse, tokenResponseDTO.getAccessToken());
+
+        tokenResponseDTO.setAccessToken(null);
         tokenResponseDTO.setRefreshToken(null);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(tokenResponseDTO);
+                .build();
     }
 
     @PostMapping(value = "/logout")
     public ResponseEntity<Void> logOut(@CookieValue(name = "refresh_token", required = false) String refreshToken, HttpServletResponse httpServletResponse) throws WrongCredentialsException {
         userAccountService.logOut(refreshToken);
-        authCookieService.clearRefreshTokenCookie(httpServletResponse);
+        authCookieService.clearCookies(httpServletResponse);
 
         return ResponseEntity
                 .status(HttpStatus.OK)

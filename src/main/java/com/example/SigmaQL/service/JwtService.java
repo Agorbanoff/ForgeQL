@@ -134,6 +134,11 @@ public class JwtService {
         });
     }
 
+    public Integer extractUserId(String token) {
+        Claims claims = jwtValidation.parseClaims(token);
+        return Integer.valueOf(claims.getSubject());
+    }
+
     @Transactional
     public void deleteExpiredTokens() {
         jwtRepository.deleteAllByExpiresAtBefore(Instant.now());

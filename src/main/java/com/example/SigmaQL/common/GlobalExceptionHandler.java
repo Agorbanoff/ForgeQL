@@ -1,6 +1,6 @@
 package com.example.SigmaQL.common;
 
-import com.example.SigmaQL.controller.dtos.res.ApiErrorResponse;
+import com.example.SigmaQL.controller.dtos.response.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.dao.DataAccessException;

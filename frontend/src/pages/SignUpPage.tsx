@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signUpUser } from '../api/accountApi'
+import { clearSavedDatasource, markSessionActive } from '../lib/appState'
 
 export default function SignUpPage() {
   const navigate = useNavigate()
@@ -26,7 +27,7 @@ export default function SignUpPage() {
     }
 
     if (!email.trim()) {
-      setError('Email is required.')
+      setError('Identifier is required.')
       return
     }
 
@@ -49,6 +50,8 @@ export default function SignUpPage() {
         password,
       })
 
+      clearSavedDatasource()
+      markSessionActive()
       setSuccess('Account created successfully.')
       setUsername('')
       setEmail('')
@@ -56,7 +59,7 @@ export default function SignUpPage() {
       setConfirmPassword('')
 
       setTimeout(() => {
-        navigate('/')
+        navigate('/connection-request')
       }, 800)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed.')
@@ -81,10 +84,14 @@ export default function SignUpPage() {
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            type="email"
-            placeholder="Email"
+            type="text"
+            placeholder="Email or any identifier"
             className="w-full rounded-lg border border-zinc-700 bg-zinc-800 p-3 outline-none"
           />
+
+          <p className="text-xs text-zinc-500">
+            Simple identifiers are converted to a backend-safe email automatically.
+          </p>
 
           <input
             value={password}
@@ -93,6 +100,10 @@ export default function SignUpPage() {
             placeholder="Password"
             className="w-full rounded-lg border border-zinc-700 bg-zinc-800 p-3 outline-none"
           />
+
+          <p className="text-xs text-zinc-500">
+            If the password is shorter than 8 characters, the frontend pads it consistently for you.
+          </p>
 
           <input
             value={confirmPassword}

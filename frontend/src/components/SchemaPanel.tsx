@@ -1,11 +1,34 @@
 import { schema } from '../data/schema'
+import type { StoredDataSourceSummary } from '../lib/appState'
 
-export function SchemaPanel() {
+type SchemaPanelProps = {
+  connection?: StoredDataSourceSummary | null
+}
+
+export function SchemaPanel({ connection }: SchemaPanelProps) {
   const entities = Object.entries(schema.entities)
 
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Schema</h2>
+
+      {connection && (
+        <div className="rounded-2xl border border-cyan-900 bg-cyan-950/20 p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/70">
+            Connected DB
+          </p>
+          <p className="mt-2 text-sm font-semibold text-cyan-300">
+            {connection.name}
+          </p>
+          <p className="mt-1 text-xs text-zinc-300">
+            {connection.dbType} on {connection.host}:{connection.port}
+          </p>
+          <p className="text-xs text-zinc-400">
+            {connection.databaseName}
+            {connection.schemaName ? ` / ${connection.schemaName}` : ''}
+          </p>
+        </div>
+      )}
 
       {entities.map(([entityName, entity]) => {
         const relations = Object.entries(entity.relations ?? {})
@@ -50,10 +73,10 @@ export function SchemaPanel() {
                     >
                       <p className="text-sm text-zinc-200">{relationName}</p>
                       <p className="text-xs text-zinc-500">
-                        {relation.type} → {relation.target}
+                        {relation.type} -&gt; {relation.target}
                       </p>
                       <p className="text-xs text-zinc-600">
-                        {relation.localKey} → {relation.foreignKey}
+                        {relation.localKey} -&gt; {relation.foreignKey}
                       </p>
                     </div>
                   ))}

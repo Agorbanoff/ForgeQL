@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { logInUser } from '../api/accountApi'
+import { clearSavedDatasource, markSessionActive } from '../lib/appState'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -19,7 +20,7 @@ export default function LoginPage() {
     setSuccess(null)
 
     if (!email.trim()) {
-      setError('Email is required.')
+      setError('Identifier is required.')
       return
     }
 
@@ -36,12 +37,14 @@ export default function LoginPage() {
         password,
       })
 
+      clearSavedDatasource()
+      markSessionActive()
       setSuccess('Logged in successfully.')
       setEmail('')
       setPassword('')
 
       setTimeout(() => {
-        navigate('/')
+        navigate('/connection-request')
       }, 800)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Log in failed.')
@@ -59,10 +62,14 @@ export default function LoginPage() {
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            type="email"
-            placeholder="Email"
+            type="text"
+            placeholder="Email or any identifier"
             className="w-full rounded-lg border border-zinc-700 bg-zinc-800 p-3 outline-none"
           />
+
+          <p className="text-xs text-zinc-500">
+            Simple identifiers are converted to a backend-safe email automatically.
+          </p>
 
           <input
             value={password}
@@ -71,6 +78,10 @@ export default function LoginPage() {
             placeholder="Password"
             className="w-full rounded-lg border border-zinc-700 bg-zinc-800 p-3 outline-none"
           />
+
+          <p className="text-xs text-zinc-500">
+            Short passwords are padded automatically to satisfy the current backend rules.
+          </p>
 
           {error && (
             <div className="rounded-lg border border-red-800 bg-red-950/40 p-3 text-sm text-red-300">
@@ -94,7 +105,7 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-4 text-sm text-zinc-400">
-          No account?{' '}
+          No account yet?{' '}
           <Link to="/signup" className="text-cyan-400">
             Sign up
           </Link>

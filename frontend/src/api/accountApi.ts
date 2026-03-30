@@ -69,7 +69,7 @@ function normalizeIdentifierToEmail(value: string): string {
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
-  return `${safeLocalPart || 'forgeql-user'}@forgeql.local`
+  return `${safeLocalPart || 'sigmaql-user'}@sigmaql.local`
 }
 
 function normalizePassword(value: string): string {
@@ -77,7 +77,7 @@ function normalizePassword(value: string): string {
     return value
   }
 
-  return `${value}forgeql!`.slice(0, 8)
+  return `${value}sigmaql!`.slice(0, 8)
 }
 
 function normalizeUsername(username: string, emailOrIdentifier: string): string {
@@ -87,5 +87,5 @@ function normalizeUsername(username: string, emailOrIdentifier: string): string 
   }
 
   const derived = emailOrIdentifier.trim().split('@')[0]
-  return (derived || 'forgeql-user').slice(0, 20)
+  return (derived || 'sigmaql-user').slice(0, 20)
 }

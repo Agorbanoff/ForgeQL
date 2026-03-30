@@ -27,7 +27,7 @@ export default function App() {
     <div className="min-h-screen bg-zinc-950 text-white">
       <header className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-7xl items-center px-6 py-4">
-          <h1 className="text-xl font-semibold">ForgeQL</h1>
+          <h1 className="text-xl font-semibold">SigmaQL</h1>
         </div>
       </header>
 

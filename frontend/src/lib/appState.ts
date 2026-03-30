@@ -14,8 +14,8 @@ export type StoredDataSourceDetails = StoredDataSourceSummary & {
   sslMode?: string | null
 }
 
-const SESSION_KEY = 'forgeql.session-active'
-const DATASOURCE_KEY = 'forgeql.saved-datasource'
+const SESSION_KEY = 'sigmaql.session-active'
+const DATASOURCE_KEY = 'sigmaql.saved-datasource'
 
 export function markSessionActive() {
   localStorage.setItem(SESSION_KEY, 'true')

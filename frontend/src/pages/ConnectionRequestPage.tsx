@@ -77,7 +77,7 @@ export default function ConnectionRequestPage() {
     return {
       name:
         trimmedName ||
-        `${form.databaseName.trim() || form.host.trim() || 'ForgeQL'} connection`,
+        `${form.databaseName.trim() || form.host.trim() || 'SigmaQL'} connection`,
       dbType: form.dbType,
       host: form.host.trim(),
       port: Number(form.port),
@@ -168,7 +168,7 @@ export default function ConnectionRequestPage() {
         <div className="mb-6">
           <h2 className="text-3xl font-semibold">Database Connection Request</h2>
           <p className="mt-2 text-sm text-zinc-400">
-            Save the database details you want ForgeQL to query from the playground.
+            Save the database details you want SigmaQL to query from the playground.
           </p>
         </div>
 

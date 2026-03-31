@@ -139,30 +139,32 @@ export default function App() {
         </header>
       </div>
 
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route
-          path="/connection-request"
-          element={
-            <RequireSession>
-              <ConnectionRequestPage />
-            </RequireSession>
-          }
-        />
-        <Route
-          path="/playground"
-          element={
-            <RequireSession>
-              <RequireSavedDatasource>
-                <PlaygroundPage />
-              </RequireSavedDatasource>
-            </RequireSession>
-          }
-        />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      <div key={location.pathname} data-animate="scene">
+        <Routes location={location}>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route
+            path="/connection-request"
+            element={
+              <RequireSession>
+                <ConnectionRequestPage />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/playground"
+            element={
+              <RequireSession>
+                <RequireSavedDatasource>
+                  <PlaygroundPage />
+                </RequireSavedDatasource>
+              </RequireSession>
+            }
+          />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </div>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { schema } from '../data/schema'
+import { useElegantAnimations } from '../hooks/useElegantAnimations'
 
 type EntityKey = keyof typeof schema.entities
 type FilterOperator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'like'
@@ -16,16 +17,20 @@ type QueryBuilderProps = {
   loading: boolean
 }
 
-export function QueryBuilder({
-  onRunQuery,
-  loading,
-}: QueryBuilderProps) {
+export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
   const entityNames = Object.keys(schema.entities) as EntityKey[]
 
   const [selectedEntity, setSelectedEntity] = useState<EntityKey>('users')
   const [selectedFields, setSelectedFields] = useState<string[]>([])
   const [filters, setFilters] = useState<FilterRow[]>([])
   const [limit, setLimit] = useState('')
+  const rootRef = useElegantAnimations<HTMLDivElement>([
+    selectedEntity,
+    selectedFields.join(','),
+    filters.length,
+    limit,
+    loading,
+  ])
 
   const entity = schema.entities[selectedEntity]
 
@@ -61,180 +66,234 @@ export function QueryBuilder({
     setFilters((prev) => prev.filter((filter) => filter.id !== id))
   }
 
-  const query = useMemo(
-    () => {
-      const filterPayload = filters.reduce<Record<string, Record<string, unknown>>>(
-        (acc, filter) => {
-          if (!filter.field || !filter.value.trim()) {
-            return acc
-          }
-
-          acc[filter.field] = {
-            ...(acc[filter.field] ?? {}),
-            [filter.operator]: parseFilterValue(filter.value),
-          }
-
+  const query = useMemo(() => {
+    const filterPayload = filters.reduce<Record<string, Record<string, unknown>>>(
+      (acc, filter) => {
+        if (!filter.field || !filter.value.trim()) {
           return acc
-        },
-        {}
-      )
+        }
 
-      return {
-        entity: selectedEntity,
-        fields: selectedFields,
-        ...(Object.keys(filterPayload).length > 0 ? { filter: filterPayload } : {}),
-        ...(limit.trim() && !Number.isNaN(Number(limit))
-          ? { limit: Number(limit) }
-          : {}),
-      }
-    },
-    [filters, limit, selectedEntity, selectedFields]
-  )
+        acc[filter.field] = {
+          ...(acc[filter.field] ?? {}),
+          [filter.operator]: parseFilterValue(filter.value),
+        }
+
+        return acc
+      },
+      {}
+    )
+
+    return {
+      entity: selectedEntity,
+      fields: selectedFields,
+      ...(Object.keys(filterPayload).length > 0 ? { filter: filterPayload } : {}),
+      ...(limit.trim() && !Number.isNaN(Number(limit))
+        ? { limit: Number(limit) }
+        : {}),
+    }
+  }, [filters, limit, selectedEntity, selectedFields])
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">Query Builder</h2>
+    <div ref={rootRef} className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+            Query composer
+          </p>
+          <h2 className="display-title mt-3 text-[2.3rem] text-white">Build a request</h2>
+          <p className="mt-3 text-sm leading-6 text-zinc-400">
+            Select an entity, choose the fields, then tighten the result with filters and a limit.
+          </p>
+        </div>
 
         <button
           type="button"
           onClick={() => onRunQuery(query)}
           disabled={loading || selectedFields.length === 0}
-          className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
+          className="primary-button"
+          data-pressable
         >
-          {loading ? 'Running...' : 'Run Query'}
+          {loading ? 'Running...' : 'Run query'}
         </button>
       </div>
 
-      <div>
-        <label className="text-sm text-zinc-400">Entity</label>
-        <select
-          value={selectedEntity}
-          onChange={(e) => {
-            setSelectedEntity(e.target.value as EntityKey)
-            setSelectedFields([])
-            setFilters([])
-          }}
-          className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 p-2 text-white outline-none"
-        >
-          {entityNames.map((entityName) => (
-            <option key={entityName} value={entityName}>
-              {entityName}
-            </option>
-          ))}
-        </select>
-      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="surface-card p-5" data-animate="panel">
+          <label className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+            Entity
+          </label>
+          <select
+            value={selectedEntity}
+            onChange={(e) => {
+              setSelectedEntity(e.target.value as EntityKey)
+              setSelectedFields([])
+              setFilters([])
+            }}
+            className="input-shell mt-3"
+          >
+            {entityNames.map((entityName) => (
+              <option key={entityName} value={entityName}>
+                {entityName}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <div>
-        <p className="mb-2 text-sm text-zinc-400">Fields</p>
-        <div className="flex flex-wrap gap-2">
-          {entity.fields.map((field) => (
-            <button
-              key={field}
-              type="button"
-              onClick={() => toggleField(field)}
-              className={`rounded-md border px-2 py-1 text-sm ${
-                selectedFields.includes(field)
-                  ? 'border-cyan-400 bg-cyan-500 text-black'
-                  : 'border-zinc-700 text-zinc-300'
-              }`}
-            >
-              {field}
-            </button>
-          ))}
+        <div className="surface-card p-5" data-animate="panel">
+          <label className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+            Limit
+          </label>
+          <input
+            value={limit}
+            onChange={(e) => setLimit(e.target.value)}
+            placeholder="Optional row limit"
+            className="input-shell mt-3"
+          />
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-zinc-400">Filters</p>
+      <div className="surface-card p-5" data-animate="panel">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Fields</p>
+            <p className="mt-2 text-sm text-zinc-400">
+              {selectedFields.length} selected out of {entity.fields.length}
+            </p>
+          </div>
+
+          <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300">
+            Entity: {selectedEntity}
+          </span>
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          {entity.fields.map((field) => {
+            const active = selectedFields.includes(field)
+
+            return (
+              <button
+                key={field}
+                type="button"
+                onClick={() => toggleField(field)}
+                className={`rounded-full border px-4 py-2 text-sm transition ${
+                  active
+                    ? 'border-cyan-300/30 bg-cyan-300 text-slate-950 shadow-[0_12px_30px_rgba(82,215,255,0.22)]'
+                    : 'border-white/8 bg-white/[0.03] text-zinc-200 hover:border-cyan-300/20 hover:bg-cyan-300/8'
+                }`}
+                data-pressable
+              >
+                {field}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="surface-card p-5" data-animate="panel">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Filters</p>
+            <p className="mt-2 text-sm text-zinc-400">
+              Narrow the request with field operators and typed values.
+            </p>
+          </div>
+
           <button
             type="button"
             onClick={addFilter}
-            className="rounded-lg border border-zinc-700 px-3 py-1 text-xs text-zinc-200"
+            className="secondary-button px-4 py-2"
+            data-pressable
           >
             Add filter
           </button>
         </div>
 
         {filters.length === 0 && (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-500">
+          <div className="mt-5 rounded-[22px] border border-white/8 bg-white/[0.02] p-4 text-sm text-zinc-500">
             No filters yet. Add one to narrow the rows you want back.
           </div>
         )}
 
-        {filters.map((filter) => (
-          <div
-            key={filter.id}
-            className="grid gap-2 rounded-xl border border-zinc-800 bg-zinc-950 p-3 md:grid-cols-[1.2fr,1fr,1.4fr,auto]"
-          >
-            <select
-              value={filter.field}
-              onChange={(e) =>
-                updateFilter(filter.id, { field: e.target.value })
-              }
-              className="rounded-lg border border-zinc-700 bg-zinc-800 p-2 text-sm text-white outline-none"
-            >
-              {entity.fields.map((field) => (
-                <option key={field} value={field}>
-                  {field}
-                </option>
-              ))}
-            </select>
+        {filters.length > 0 && (
+          <div className="mt-5 space-y-3">
+            {filters.map((filter) => (
+              <div
+                key={filter.id}
+                className="grid gap-3 rounded-[24px] border border-white/8 bg-white/[0.02] p-4 md:grid-cols-[1.1fr_0.95fr_1.4fr_auto]"
+                data-animate="panel"
+              >
+                <select
+                  value={filter.field}
+                  onChange={(e) =>
+                    updateFilter(filter.id, { field: e.target.value })
+                  }
+                  className="input-shell"
+                >
+                  {entity.fields.map((field) => (
+                    <option key={field} value={field}>
+                      {field}
+                    </option>
+                  ))}
+                </select>
 
-            <select
-              value={filter.operator}
-              onChange={(e) =>
-                updateFilter(filter.id, {
-                  operator: e.target.value as FilterOperator,
-                })
-              }
-              className="rounded-lg border border-zinc-700 bg-zinc-800 p-2 text-sm text-white outline-none"
-            >
-              <option value="eq">equals</option>
-              <option value="ne">not equals</option>
-              <option value="gt">greater than</option>
-              <option value="gte">greater or equal</option>
-              <option value="lt">less than</option>
-              <option value="lte">less or equal</option>
-              <option value="like">contains / like</option>
-            </select>
+                <select
+                  value={filter.operator}
+                  onChange={(e) =>
+                    updateFilter(filter.id, {
+                      operator: e.target.value as FilterOperator,
+                    })
+                  }
+                  className="input-shell"
+                >
+                  <option value="eq">equals</option>
+                  <option value="ne">not equals</option>
+                  <option value="gt">greater than</option>
+                  <option value="gte">greater or equal</option>
+                  <option value="lt">less than</option>
+                  <option value="lte">less or equal</option>
+                  <option value="like">contains / like</option>
+                </select>
 
-            <input
-              value={filter.value}
-              onChange={(e) =>
-                updateFilter(filter.id, { value: e.target.value })
-              }
-              placeholder='Value, e.g. 3 or "%alex%"'
-              className="rounded-lg border border-zinc-700 bg-zinc-800 p-2 text-sm outline-none placeholder:text-zinc-500"
-            />
+                <input
+                  value={filter.value}
+                  onChange={(e) =>
+                    updateFilter(filter.id, { value: e.target.value })
+                  }
+                  placeholder='Value, e.g. 3 or "%alex%"'
+                  className="input-shell"
+                />
 
-            <button
-              type="button"
-              onClick={() => removeFilter(filter.id)}
-              className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300"
-            >
-              Remove
-            </button>
+                <button
+                  type="button"
+                  onClick={() => removeFilter(filter.id)}
+                  className="secondary-button px-4 py-2"
+                  data-pressable
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
-      <div>
-        <label className="text-sm text-zinc-400">Limit</label>
-        <input
-          value={limit}
-          onChange={(e) => setLimit(e.target.value)}
-          placeholder="Optional row limit"
-          className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 p-2 text-white outline-none placeholder:text-zinc-500"
-        />
-      </div>
+      <div className="surface-card p-5" data-animate="panel">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+              Generated query
+            </p>
+            <p className="mt-2 text-sm text-zinc-400">
+              This is the exact payload the client will submit.
+            </p>
+          </div>
 
-      <div>
-        <p className="mb-2 text-sm text-zinc-400">Generated Query</p>
-        <pre className="overflow-auto rounded-xl border border-zinc-800 bg-black p-4 text-xs text-green-400">
-          {JSON.stringify(query, null, 2)}
-        </pre>
+          <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300">
+            JSON preview
+          </span>
+        </div>
+
+        <pre className="data-block mt-5">{JSON.stringify(query, null, 2)}</pre>
       </div>
     </div>
   )

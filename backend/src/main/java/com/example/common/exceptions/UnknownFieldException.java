@@ -5,6 +5,6 @@ import org.springframework.http.HttpStatus;
 
 public class UnknownFieldException extends CustomException {
     public UnknownFieldException(String message, HttpStatus statusCode) {
-        super(message, HttpStatus.BAD_REQUEST);
+        super(message, statusCode);
     }
 }

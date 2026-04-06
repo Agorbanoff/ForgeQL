@@ -1,20 +1,32 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { logInUser } from '../api/accountApi'
-import { clearSavedDatasource, markSessionActive } from '../lib/appState'
 import AuthLayout from '../components/AuthLayout'
+import { clearSavedDatasource, markSessionActive } from '../lib/appState'
+
+type LoginLocationState = {
+  email?: string
+  password?: string
+  fromSignup?: boolean
+}
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const locationState = (location.state ?? null) as LoginLocationState | null
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(locationState?.email ?? '')
+  const [password, setPassword] = useState(locationState?.password ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(
+    locationState?.fromSignup
+      ? 'Account created. Log in to generate the session tokens and continue.'
+      : null
+  )
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
 
     setError(null)
     setSuccess(null)
@@ -39,13 +51,11 @@ export default function LoginPage() {
 
       clearSavedDatasource()
       markSessionActive()
-      setSuccess('Logged in successfully. Redirecting to connection setup...')
-      setEmail('')
-      setPassword('')
+      setSuccess('Logged in. Opening datasource setup...')
 
       setTimeout(() => {
-        navigate('/connection-request')
-      }, 800)
+        navigate('/connection-request', { replace: true })
+      }, 500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Log in failed.')
     } finally {
@@ -55,21 +65,27 @@ export default function LoginPage() {
 
   return (
     <AuthLayout
-      badge="Elegant Access"
-      title="Smarter queries. Faster answers."
-      description="Enter the SigmaQL workspace through a calmer, more premium interface built around secure access, structured querying, and smooth transitions from auth to execution."
+      badge="Step 1 of 3"
+      title="Log in before the workspace opens."
+      description="The client flow now starts here. After login succeeds the app moves directly into datasource setup, and the session cookies are issued by the backend."
       formTitle="Log in"
-      formDescription="Log in with the exact email and password you registered with."
+      formDescription="Use the same email and password that belong to the account you created."
+      highlights={[
+        'Access stays locked until login succeeds.',
+        'Datasource setup is always the next step after authentication.',
+        'Access and refresh JWT cookies are created after a successful sign in.',
+      ]}
       form={
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label className="text-sm font-medium text-zinc-300">Email</label>
             <input
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               type="email"
               placeholder="name@example.com"
               className="input-shell"
+              autoComplete="email"
             />
           </div>
 
@@ -77,10 +93,11 @@ export default function LoginPage() {
             <label className="text-sm font-medium text-zinc-300">Password</label>
             <input
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               type="password"
               placeholder="Password"
               className="input-shell"
+              autoComplete="current-password"
             />
           </div>
 
@@ -101,8 +118,9 @@ export default function LoginPage() {
             disabled={loading}
             className="primary-button mt-2 w-full"
             data-pressable
+            data-glow={!loading ? 'pulse' : undefined}
           >
-            {loading ? 'Logging in...' : 'Enter workspace'}
+            {loading ? 'Logging in...' : 'Continue'}
           </button>
         </form>
       }

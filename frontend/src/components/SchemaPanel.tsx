@@ -1,6 +1,6 @@
 import { schema } from '../data/schema'
-import type { StoredDataSourceSummary } from '../lib/appState'
 import { useElegantAnimations } from '../hooks/useElegantAnimations'
+import type { StoredDataSourceSummary } from '../lib/appState'
 
 type SchemaPanelProps = {
   connection?: StoredDataSourceSummary | null
@@ -11,19 +11,19 @@ export function SchemaPanel({ connection }: SchemaPanelProps) {
   const entities = Object.entries(schema.entities)
 
   return (
-    <div ref={rootRef} className="space-y-5">
-      <div>
-        <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Schema map</p>
-        <h2 className="display-title mt-3 text-[2.2rem] text-white">Explore entities</h2>
-        <p className="mt-3 text-sm leading-6 text-zinc-400">
-          Review the shape of the demo schema before composing the JSON request.
-        </p>
+    <div ref={rootRef} className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Schema</p>
+          <h2 className="display-title mt-3 text-[2rem] text-white">Entities</h2>
+        </div>
+        <span className="small-chip">{entities.length} available</span>
       </div>
 
       {connection && (
         <div className="surface-card p-5" data-animate="panel" data-pressable data-tilt>
           <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/80">
-            Connected DB
+            Connected
           </p>
           <p className="mt-3 text-base font-semibold text-cyan-100">{connection.name}</p>
           <p className="mt-1 text-sm text-zinc-300">

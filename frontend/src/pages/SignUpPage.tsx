@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signUpUser } from '../api/accountApi'
-import { clearSavedDatasource, clearSessionActive } from '../lib/appState'
+import { ApiRequestError } from '../api/http'
 import AuthLayout from '../components/AuthLayout'
+import { clearSavedDatasource, clearSessionActive } from '../lib/appState'
 
 export default function SignUpPage() {
   const navigate = useNavigate()
@@ -15,8 +16,8 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
 
     setError(null)
     setSuccess(null)
@@ -36,32 +37,61 @@ export default function SignUpPage() {
       return
     }
 
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.')
+      return
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match.')
       return
     }
 
+    const trimmedUsername = username.trim()
+    const trimmedEmail = email.trim()
+
     try {
       setLoading(true)
 
       await signUpUser({
-        username: username.trim(),
-        email: email.trim(),
+        username: trimmedUsername,
+        email: trimmedEmail,
         password,
       })
 
       clearSessionActive()
       clearSavedDatasource()
-      setSuccess('Account created successfully. Redirecting to log in...')
-      setUsername('')
-      setEmail('')
-      setPassword('')
-      setConfirmPassword('')
+      setSuccess('Account created. Redirecting to login with your credentials filled in...')
 
       setTimeout(() => {
-        navigate('/login')
-      }, 800)
+        navigate('/login', {
+          replace: true,
+          state: {
+            email: trimmedEmail,
+            password,
+            fromSignup: true,
+          },
+        })
+      }, 500)
     } catch (err) {
+      console.error('[signup-page] submit failed', {
+        username: trimmedUsername,
+        email: trimmedEmail,
+        passwordLength: password.length,
+        confirmPasswordLength: confirmPassword.length,
+        error:
+          err instanceof ApiRequestError
+            ? {
+                name: err.name,
+                message: err.message,
+                status: err.status,
+                path: err.path,
+                timestamp: err.timestamp,
+                errorLabel: err.errorLabel,
+              }
+            : err,
+      })
+
       setError(err instanceof Error ? err.message : 'Sign up failed.')
     } finally {
       setLoading(false)
@@ -70,20 +100,26 @@ export default function SignUpPage() {
 
   return (
     <AuthLayout
-      badge="Smooth Onboarding"
-      title="Design a cleaner path into your data layer."
-      description="Create a SigmaQL account and move directly into datasource setup with the same polished motion language, dark surfaces, and editorial feel carried across the whole product."
+      badge="Create account"
+      title="Start with a clean account setup."
+      description="Create the client account first. After that, the flow moves to login so tokens are generated only when the user explicitly signs in."
       formTitle="Create account"
-      formDescription="Create your account with a real email and password, then log in to start a session."
+      formDescription="Use a real email and password. Once the account is created, the login form will already be filled for you."
+      highlights={[
+        'This page only creates the account and does not open the workspace yet.',
+        'Login remains the required step for issuing the JWT cookies.',
+        'Your email and password are carried into the next screen automatically.',
+      ]}
       form={
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label className="text-sm font-medium text-zinc-300">Username</label>
             <input
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(event) => setUsername(event.target.value)}
               placeholder="Username"
               className="input-shell"
+              autoComplete="username"
             />
           </div>
 
@@ -91,10 +127,11 @@ export default function SignUpPage() {
             <label className="text-sm font-medium text-zinc-300">Email</label>
             <input
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               type="email"
               placeholder="name@example.com"
               className="input-shell"
+              autoComplete="email"
             />
           </div>
 
@@ -102,10 +139,11 @@ export default function SignUpPage() {
             <label className="text-sm font-medium text-zinc-300">Password</label>
             <input
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               type="password"
               placeholder="Password"
               className="input-shell"
+              autoComplete="new-password"
             />
           </div>
 
@@ -115,10 +153,11 @@ export default function SignUpPage() {
             </label>
             <input
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={(event) => setConfirmPassword(event.target.value)}
               type="password"
               placeholder="Confirm password"
               className="input-shell"
+              autoComplete="new-password"
             />
           </div>
 
@@ -139,6 +178,7 @@ export default function SignUpPage() {
             disabled={loading}
             className="primary-button mt-2 w-full"
             data-pressable
+            data-glow={!loading ? 'pulse' : undefined}
           >
             {loading ? 'Creating account...' : 'Create account'}
           </button>

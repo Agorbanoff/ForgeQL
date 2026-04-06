@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { schema } from '../data/schema'
 import { useElegantAnimations } from '../hooks/useElegantAnimations'
+import { AnimatedSelect } from './AnimatedSelect'
 
 type EntityKey = keyof typeof schema.entities
 type FilterOperator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'like'
@@ -17,8 +18,22 @@ type QueryBuilderProps = {
   loading: boolean
 }
 
+const operatorOptions = [
+  { value: 'eq', label: 'Equals' },
+  { value: 'ne', label: 'Not equals' },
+  { value: 'gt', label: 'Greater than' },
+  { value: 'gte', label: 'Greater or equal' },
+  { value: 'lt', label: 'Less than' },
+  { value: 'lte', label: 'Less or equal' },
+  { value: 'like', label: 'Contains' },
+] as const
+
 export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
   const entityNames = Object.keys(schema.entities) as EntityKey[]
+  const entityOptions = entityNames.map((entityName) => ({
+    value: entityName,
+    label: entityName,
+  }))
 
   const [selectedEntity, setSelectedEntity] = useState<EntityKey>('users')
   const [selectedFields, setSelectedFields] = useState<string[]>([])
@@ -33,20 +48,24 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
   ])
 
   const entity = schema.entities[selectedEntity]
+  const fieldOptions = entity.fields.map((field) => ({
+    value: field,
+    label: field,
+  }))
 
   function toggleField(field: string) {
-    setSelectedFields((prev) =>
-      prev.includes(field)
-        ? prev.filter((f) => f !== field)
-        : [...prev, field]
+    setSelectedFields((previous) =>
+      previous.includes(field)
+        ? previous.filter((item) => item !== field)
+        : [...previous, field]
     )
   }
 
   function addFilter() {
-    setFilters((prev) => [
-      ...prev,
+    setFilters((previous) => [
+      ...previous,
       {
-        id: Date.now() + prev.length,
+        id: Date.now() + previous.length,
         field: entity.fields[0] ?? '',
         operator: 'eq',
         value: '',
@@ -55,30 +74,30 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
   }
 
   function updateFilter(id: number, patch: Partial<FilterRow>) {
-    setFilters((prev) =>
-      prev.map((filter) =>
+    setFilters((previous) =>
+      previous.map((filter) =>
         filter.id === id ? { ...filter, ...patch } : filter
       )
     )
   }
 
   function removeFilter(id: number) {
-    setFilters((prev) => prev.filter((filter) => filter.id !== id))
+    setFilters((previous) => previous.filter((filter) => filter.id !== id))
   }
 
   const query = useMemo(() => {
     const filterPayload = filters.reduce<Record<string, Record<string, unknown>>>(
-      (acc, filter) => {
+      (accumulator, filter) => {
         if (!filter.field || !filter.value.trim()) {
-          return acc
+          return accumulator
         }
 
-        acc[filter.field] = {
-          ...(acc[filter.field] ?? {}),
+        accumulator[filter.field] = {
+          ...(accumulator[filter.field] ?? {}),
           [filter.operator]: parseFilterValue(filter.value),
         }
 
-        return acc
+        return accumulator
       },
       {}
     )
@@ -94,16 +113,15 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
   }, [filters, limit, selectedEntity, selectedFields])
 
   return (
-    <div ref={rootRef} className="space-y-5">
+    <div ref={rootRef} className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-            Query composer
+            Query builder
           </p>
-          <h2 className="display-title mt-3 text-[2.3rem] text-white">Build a request</h2>
-          <p className="mt-3 text-sm leading-6 text-zinc-400">
-            Select an entity, choose the fields, then tighten the result with filters and a limit.
-          </p>
+          <h2 className="display-title mt-3 text-[2.1rem] text-white">
+            Build the request
+          </h2>
         </div>
 
         <button
@@ -112,34 +130,29 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
           disabled={loading || selectedFields.length === 0}
           className="primary-button"
           data-pressable
-          data-glow={
-            !loading && selectedFields.length > 0 ? 'pulse' : undefined
-          }
+          data-glow={!loading && selectedFields.length > 0 ? 'pulse' : undefined}
         >
           {loading ? 'Running...' : 'Run query'}
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
         <div className="surface-card p-5" data-animate="panel" data-tilt>
           <label className="text-xs uppercase tracking-[0.2em] text-zinc-500">
             Entity
           </label>
-          <select
-            value={selectedEntity}
-            onChange={(e) => {
-              setSelectedEntity(e.target.value as EntityKey)
-              setSelectedFields([])
-              setFilters([])
-            }}
-            className="input-shell mt-3"
-          >
-            {entityNames.map((entityName) => (
-              <option key={entityName} value={entityName}>
-                {entityName}
-              </option>
-            ))}
-          </select>
+          <div className="mt-3">
+            <AnimatedSelect
+              value={selectedEntity}
+              onChange={(value) => {
+                setSelectedEntity(value as EntityKey)
+                setSelectedFields([])
+                setFilters([])
+              }}
+              options={entityOptions}
+              ariaLabel="Entity"
+            />
+          </div>
         </div>
 
         <div className="surface-card p-5" data-animate="panel" data-tilt>
@@ -148,8 +161,8 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
           </label>
           <input
             value={limit}
-            onChange={(e) => setLimit(e.target.value)}
-            placeholder="Optional row limit"
+            onChange={(event) => setLimit(event.target.value)}
+            placeholder="Optional"
             className="input-shell mt-3"
           />
         </div>
@@ -157,15 +170,9 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
 
       <div className="surface-card p-5" data-animate="panel" data-tilt>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Fields</p>
-            <p className="mt-2 text-sm text-zinc-400">
-              {selectedFields.length} selected out of {entity.fields.length}
-            </p>
-          </div>
-
+          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Fields</p>
           <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300">
-            Entity: {selectedEntity}
+            {selectedFields.length} / {entity.fields.length} selected
           </span>
         </div>
 
@@ -194,12 +201,7 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
 
       <div className="surface-card p-5" data-animate="panel" data-tilt>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Filters</p>
-            <p className="mt-2 text-sm text-zinc-400">
-              Narrow the request with field operators and typed values.
-            </p>
-          </div>
+          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Filters</p>
 
           <button
             type="button"
@@ -213,7 +215,7 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
 
         {filters.length === 0 && (
           <div className="mt-5 rounded-[22px] border border-white/8 bg-white/[0.02] p-4 text-sm text-zinc-500">
-            No filters yet. Add one to narrow the rows you want back.
+            No filters yet.
           </div>
         )}
 
@@ -226,42 +228,28 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
                 data-animate="panel"
                 data-tilt
               >
-                <select
+                <AnimatedSelect
                   value={filter.field}
-                  onChange={(e) =>
-                    updateFilter(filter.id, { field: e.target.value })
-                  }
-                  className="input-shell"
-                >
-                  {entity.fields.map((field) => (
-                    <option key={field} value={field}>
-                      {field}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => updateFilter(filter.id, { field: value })}
+                  options={fieldOptions}
+                  ariaLabel="Filter field"
+                />
 
-                <select
+                <AnimatedSelect
                   value={filter.operator}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     updateFilter(filter.id, {
-                      operator: e.target.value as FilterOperator,
+                      operator: value as FilterOperator,
                     })
                   }
-                  className="input-shell"
-                >
-                  <option value="eq">equals</option>
-                  <option value="ne">not equals</option>
-                  <option value="gt">greater than</option>
-                  <option value="gte">greater or equal</option>
-                  <option value="lt">less than</option>
-                  <option value="lte">less or equal</option>
-                  <option value="like">contains / like</option>
-                </select>
+                  options={operatorOptions}
+                  ariaLabel="Filter operator"
+                />
 
                 <input
                   value={filter.value}
-                  onChange={(e) =>
-                    updateFilter(filter.id, { value: e.target.value })
+                  onChange={(event) =>
+                    updateFilter(filter.id, { value: event.target.value })
                   }
                   placeholder='Value, e.g. 3 or "%alex%"'
                   className="input-shell"
@@ -283,14 +271,9 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
 
       <div className="surface-card p-5" data-animate="panel" data-tilt>
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-              Generated query
-            </p>
-            <p className="mt-2 text-sm text-zinc-400">
-              This is the exact payload the client will submit.
-            </p>
-          </div>
+          <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+            Generated query
+          </p>
 
           <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300">
             JSON preview

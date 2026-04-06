@@ -1,6 +1,13 @@
-const API_BASE_URL = 'http://localhost:8080'
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+const API_BASE_URL = (rawBaseUrl || '/api').replace(/\/$/, '')
 const CSRF_COOKIE_NAME = 'XSRF-TOKEN'
 const CSRF_HEADER_NAME = 'X-XSRF-TOKEN'
+const CSRF_EXEMPT_PATHS = new Set([
+  '/account/signup',
+  '/account/login',
+  '/account/logout',
+  '/token/refresh',
+])
 
 type RequestOptions = RequestInit & {
   retryOnUnauthorized?: boolean
@@ -86,7 +93,11 @@ async function buildRequestHeaders(
 ) {
   const headers = new Headers(options.headers ?? {})
 
-  if (path !== '/account/csrf' && isMutatingMethod(options.method)) {
+  if (
+    path !== '/account/csrf' &&
+    !CSRF_EXEMPT_PATHS.has(path) &&
+    isMutatingMethod(options.method)
+  ) {
     await ensureCsrfToken()
     const csrfToken = getCookie(CSRF_COOKIE_NAME)
 
@@ -168,16 +179,36 @@ export async function apiFetch(
   options: RequestOptions = {}
 ): Promise<Response> {
   const { retryOnUnauthorized = true, headers, ...rest } = options
-  const requestHeaders = await buildRequestHeaders(path, {
-    headers,
-    method: rest.method,
-  })
+  let requestHeaders: Headers
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...rest,
-    headers: requestHeaders,
-    credentials: 'include',
-  })
+  try {
+    requestHeaders = await buildRequestHeaders(path, {
+      headers,
+      method: rest.method,
+    })
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error
+    }
+
+    throw new ApiRequestError(
+      error instanceof Error ? error.message : 'Could not prepare the request.'
+    )
+  }
+
+  let response: Response
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...rest,
+      headers: requestHeaders,
+      credentials: 'include',
+    })
+  } catch (error) {
+    throw new ApiRequestError(
+      'Cannot reach the backend. Check that the API server is running and that the frontend proxy or API base URL is correct.'
+    )
+  }
 
   if (response.status === 401 && retryOnUnauthorized && path !== '/token/refresh') {
     const refreshed = await refreshAccessToken()
@@ -193,11 +224,19 @@ export async function apiFetch(
       method: rest.method,
     })
 
-    const retryResponse = await fetch(`${API_BASE_URL}${path}`, {
-      ...rest,
-      headers: retryHeaders,
-      credentials: 'include',
-    })
+    let retryResponse: Response
+
+    try {
+      retryResponse = await fetch(`${API_BASE_URL}${path}`, {
+        ...rest,
+        headers: retryHeaders,
+        credentials: 'include',
+      })
+    } catch {
+      throw new ApiRequestError(
+        'Cannot reach the backend. Check that the API server is running and that the frontend proxy or API base URL is correct.'
+      )
+    }
 
     if (retryResponse.status === 401) {
       localStorage.removeItem('sigmaql.session-active')

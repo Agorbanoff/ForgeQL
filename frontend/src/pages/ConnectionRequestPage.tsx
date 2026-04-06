@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { saveDataSource } from '../api/dataSourceApi'
-import { storeSavedDatasourceDetails } from '../lib/appState'
 import { ApiRequestError } from '../api/http'
+import { AnimatedSelect } from '../components/AnimatedSelect'
 import { useElegantAnimations } from '../hooks/useElegantAnimations'
+import { storeSavedDatasourceDetails } from '../lib/appState'
 
 const DATABASE_OPTIONS = [
   { value: 'POSTGRESQL', label: 'PostgreSQL', defaultPort: '5432' },
@@ -16,6 +17,11 @@ const SSL_OPTIONS = [
   { value: 'VERIFY_FULL', label: 'Verify Full' },
 ] as const
 
+const SSL_REQUIRED_OPTIONS = [
+  { value: 'no', label: 'Not required' },
+  { value: 'yes', label: 'Required' },
+] as const
+
 type DatabaseOption = (typeof DATABASE_OPTIONS)[number]['value']
 type SslOption = (typeof SSL_OPTIONS)[number]['value']
 
@@ -25,23 +31,6 @@ type ErrorDetails = {
   path?: string
   timestamp?: string
 }
-
-const onboardingNotes = [
-  'Capture the datasource cleanly once, then move straight into the playground.',
-  'Keep the JSON payload visible so it is obvious what the client will persist.',
-  'Preserve SSL intent and schema details without forcing a cluttered form.',
-]
-
-const polishCards = [
-  {
-    title: 'Secure intake',
-    copy: 'Credentials stay aligned with the existing storage flow while the UI surfaces clearer status and calmer emphasis.',
-  },
-  {
-    title: 'Preview-first',
-    copy: 'A live payload preview gives you confidence before moving into the query workspace.',
-  },
-]
 
 export default function ConnectionRequestPage() {
   const navigate = useNavigate()
@@ -63,29 +52,28 @@ export default function ConnectionRequestPage() {
   const [error, setError] = useState<ErrorDetails | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  function updateField<K extends keyof typeof form>(key: K, value: string) {
-    setForm((prev) => ({
-      ...prev,
+  function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((previous) => ({
+      ...previous,
       [key]: value,
     }))
   }
 
   function updateDbType(value: DatabaseOption) {
-    const defaultPort =
-      DATABASE_OPTIONS.find((option) => option.value === value)?.defaultPort ??
-      '5432'
+    const nextDefaultPort =
+      DATABASE_OPTIONS.find((option) => option.value === value)?.defaultPort ?? '5432'
 
-    setForm((prev) => ({
-      ...prev,
+    setForm((previous) => ({
+      ...previous,
       dbType: value,
-      port: prev.port ? prev.port : defaultPort,
-    }))
-  }
-
-  function updateSslEnabled(value: boolean) {
-    setForm((prev) => ({
-      ...prev,
-      sslEnabled: value,
+      port:
+        !previous.port ||
+        DATABASE_OPTIONS.some(
+          (option) =>
+            option.value === previous.dbType && option.defaultPort === previous.port
+        )
+          ? nextDefaultPort
+          : previous.port,
     }))
   }
 
@@ -159,16 +147,12 @@ export default function ConnectionRequestPage() {
     try {
       setLoading(true)
       await saveDataSource(payloadPreview)
-      setSuccess('Connection details saved. Opening the playground...')
+      setSuccess('Connection details saved. Opening the workspace...')
     } catch (err) {
       if (err instanceof ApiRequestError) {
-        setSuccess(
-          'Connection details saved locally for demo mode. Opening the playground...'
-        )
+        setSuccess('Saved locally for demo mode. Opening the workspace...')
       } else {
-        setSuccess(
-          'Connection details saved locally for demo mode. Opening the playground...'
-        )
+        setSuccess('Saved locally for demo mode. Opening the workspace...')
       }
 
       setError(null)
@@ -177,13 +161,13 @@ export default function ConnectionRequestPage() {
     }
 
     setTimeout(() => {
-      navigate('/playground')
+      navigate('/playground', { replace: true })
     }, 500)
   }
 
   return (
     <main ref={rootRef} className="page-shell py-6 sm:py-8" data-animate="scene">
-      <div className="grid gap-6 xl:grid-cols-[1.12fr_0.88fr]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="surface-panel px-6 py-7 sm:px-8 sm:py-8 lg:px-10" data-animate="hero">
           <div
             className="absolute left-[-4rem] top-10 h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(255,171,115,0.56),_transparent_72%)] blur-3xl"
@@ -196,119 +180,43 @@ export default function ConnectionRequestPage() {
           />
 
           <div className="relative z-10">
-            <span className="section-badge" data-animate="chip">
-              Step 01 / Datasource Intake
-            </span>
-
-            <h1 className="display-title mt-7 max-w-3xl text-[3rem] text-white sm:text-[4rem] lg:text-[4.7rem]">
-              Connect the right database with less friction.
-            </h1>
-
-            <p className="display-copy mt-5 max-w-2xl text-sm sm:text-base">
-              This step keeps the existing behavior intact, but reframes it with a more elegant flow:
-              calmer visuals, clearer grouping, and subtle motion that helps the form feel responsive
-              instead of mechanical.
-            </p>
-
-            <div className="mt-7 flex flex-wrap gap-3">
-              {onboardingNotes.map((note) => (
-                <span key={note} className="small-chip" data-animate="chip">
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                  {note}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-8 grid gap-4 md:grid-cols-2">
-              {polishCards.map((card) => (
-                <article
-                  key={card.title}
-                  className="surface-card p-5"
-                  data-animate="panel"
-                  data-pressable
-                  data-tilt
-                >
-                  <div className="mb-4 inline-flex rounded-full border border-white/8 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-cyan-200">
-                    Flow
-                  </div>
-                  <h2 className="text-lg font-semibold text-white">{card.title}</h2>
-                  <p className="mt-3 text-sm leading-6 text-zinc-400">{card.copy}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="surface-panel px-6 py-7 sm:px-8 sm:py-8" data-animate="panel">
-          <div className="relative z-10 grid gap-4">
-            <div className="surface-card p-5" data-tilt>
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                Draft summary
-              </p>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-                  <p className="text-xs text-zinc-500">Database type</p>
-                  <p className="mt-2 text-lg font-semibold text-white">
-                    {form.dbType === 'POSTGRESQL' ? 'PostgreSQL' : 'MySQL'}
-                  </p>
-                </div>
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-                  <p className="text-xs text-zinc-500">SSL</p>
-                  <p className="mt-2 text-lg font-semibold text-white">
-                    {form.sslEnabled ? form.sslMode : 'Not required'}
-                  </p>
-                </div>
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-                  <p className="text-xs text-zinc-500">Host</p>
-                  <p className="mt-2 truncate text-lg font-semibold text-white">
-                    {form.host || 'Awaiting input'}
-                  </p>
-                </div>
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
-                  <p className="text-xs text-zinc-500">Database</p>
-                  <p className="mt-2 truncate text-lg font-semibold text-white">
-                    {form.databaseName || 'Awaiting input'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="surface-card p-5" data-tilt>
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                Payload preview
-              </p>
-              <pre className="data-block mt-4">{JSON.stringify(payloadPreview, null, 2)}</pre>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="surface-panel px-6 py-7 sm:px-8 sm:py-8" data-animate="panel">
-          <div className="relative z-10">
-            <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                  Connection form
+                <span className="section-badge" data-animate="chip">
+                  Step 2 of 3
+                </span>
+                <h1 className="display-title mt-6 max-w-[12ch] text-[2.9rem] text-white sm:text-[3.8rem]">
+                  Connect the datasource.
+                </h1>
+                <p className="display-copy mt-4 max-w-2xl text-sm sm:text-base">
+                  Keep this step focused: save the connection details, then move
+                  straight into the workspace.
                 </p>
-                <h2 className="display-title mt-3 text-[2.4rem] text-white">
-                  Configure the source
-                </h2>
               </div>
 
-              <div className="rounded-full border border-cyan-400/20 bg-cyan-400/8 px-4 py-2 text-sm text-cyan-100">
-                Demo-friendly and backend-compatible
+              <div className="flex flex-wrap gap-2">
+                {['Access ready', 'Datasource setup', 'Workspace next'].map(
+                  (item, index) => (
+                    <span
+                      key={item}
+                      className={`small-chip ${index === 1 ? 'border-cyan-300/20 bg-cyan-300/10 text-cyan-100' : ''}`}
+                      data-animate="chip"
+                    >
+                      {item}
+                    </span>
+                  )
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">
                   Connection name
                 </label>
                 <input
                   value={form.name}
-                  onChange={(e) => updateField('name', e.target.value)}
+                  onChange={(event) => updateField('name', event.target.value)}
                   placeholder="My app database"
                   className="input-shell"
                 />
@@ -318,17 +226,16 @@ export default function ConnectionRequestPage() {
                 <label className="text-sm font-medium text-zinc-300">
                   Database type
                 </label>
-                <select
+                <AnimatedSelect
                   value={form.dbType}
-                  onChange={(e) => updateDbType(e.target.value as DatabaseOption)}
-                  className="input-shell"
-                >
-                  {DATABASE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => updateDbType(value as DatabaseOption)}
+                  options={DATABASE_OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                    description: `Default port ${option.defaultPort}`,
+                  }))}
+                  ariaLabel="Database type"
+                />
               </div>
 
               <div className="space-y-2">
@@ -337,7 +244,7 @@ export default function ConnectionRequestPage() {
                 </label>
                 <input
                   value={form.host}
-                  onChange={(e) => updateField('host', e.target.value)}
+                  onChange={(event) => updateField('host', event.target.value)}
                   placeholder="db.example.com or 192.168.1.10"
                   className="input-shell"
                 />
@@ -347,7 +254,7 @@ export default function ConnectionRequestPage() {
                 <label className="text-sm font-medium text-zinc-300">Port</label>
                 <input
                   value={form.port}
-                  onChange={(e) => updateField('port', e.target.value)}
+                  onChange={(event) => updateField('port', event.target.value)}
                   placeholder="5432"
                   className="input-shell"
                 />
@@ -359,7 +266,9 @@ export default function ConnectionRequestPage() {
                 </label>
                 <input
                   value={form.databaseName}
-                  onChange={(e) => updateField('databaseName', e.target.value)}
+                  onChange={(event) =>
+                    updateField('databaseName', event.target.value)
+                  }
                   placeholder="my_database"
                   className="input-shell"
                 />
@@ -367,11 +276,11 @@ export default function ConnectionRequestPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">
-                  Schema (optional)
+                  Schema
                 </label>
                 <input
                   value={form.schemaName}
-                  onChange={(e) => updateField('schemaName', e.target.value)}
+                  onChange={(event) => updateField('schemaName', event.target.value)}
                   placeholder="public"
                   className="input-shell"
                 />
@@ -381,18 +290,20 @@ export default function ConnectionRequestPage() {
                 <label className="text-sm font-medium text-zinc-300">Username</label>
                 <input
                   value={form.username}
-                  onChange={(e) => updateField('username', e.target.value)}
+                  onChange={(event) => updateField('username', event.target.value)}
                   placeholder="readonly_user"
                   className="input-shell"
                 />
               </div>
 
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Password</label>
                 <input
                   type="password"
                   value={form.encryptedPassword}
-                  onChange={(e) => updateField('encryptedPassword', e.target.value)}
+                  onChange={(event) =>
+                    updateField('encryptedPassword', event.target.value)
+                  }
                   placeholder="Enter password"
                   className="input-shell"
                 />
@@ -402,30 +313,26 @@ export default function ConnectionRequestPage() {
                 <label className="text-sm font-medium text-zinc-300">
                   Is SSL required?
                 </label>
-                <select
+                <AnimatedSelect
                   value={form.sslEnabled ? 'yes' : 'no'}
-                  onChange={(e) => updateSslEnabled(e.target.value === 'yes')}
-                  className="input-shell"
-                >
-                  <option value="no">No</option>
-                  <option value="yes">Yes</option>
-                </select>
+                  onChange={(value) => updateField('sslEnabled', value === 'yes')}
+                  options={SSL_REQUIRED_OPTIONS}
+                  ariaLabel="SSL required"
+                />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">SSL type</label>
-                <select
+                <AnimatedSelect
                   value={form.sslMode}
-                  onChange={(e) => updateField('sslMode', e.target.value as SslOption)}
-                  className="input-shell disabled:opacity-50"
+                  onChange={(value) => updateField('sslMode', value as SslOption)}
+                  options={SSL_OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  }))}
                   disabled={!form.sslEnabled}
-                >
-                  {SSL_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel="SSL type"
+                />
               </div>
             </div>
 
@@ -443,9 +350,6 @@ export default function ConnectionRequestPage() {
                     Time: {new Date(error.timestamp).toLocaleString()}
                   </p>
                 )}
-                <p className="mt-3 text-xs text-red-100/80">
-                  Check the host, port, database name, username, and SSL settings if this keeps happening.
-                </p>
               </div>
             )}
 
@@ -458,9 +362,9 @@ export default function ConnectionRequestPage() {
             <div className="subtle-divider mt-6" data-animate="line" />
 
             <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-              <p className="max-w-xl text-sm leading-6 text-zinc-400">
-                When you save, SigmaQL keeps the local summary for the workspace and then moves you into the playground flow.
-              </p>
+              <span className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-zinc-300">
+                Stored locally first, then synced to the backend flow
+              </span>
 
               <button
                 type="button"
@@ -474,7 +378,7 @@ export default function ConnectionRequestPage() {
                     : undefined
                 }
               >
-                {loading ? 'Saving...' : 'Save details'}
+                {loading ? 'Saving...' : 'Continue to workspace'}
               </button>
             </div>
           </div>
@@ -483,17 +387,49 @@ export default function ConnectionRequestPage() {
         <aside className="grid gap-6">
           <section className="surface-panel px-6 py-7" data-animate="panel">
             <div className="relative z-10">
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                What this screen improves
-              </p>
-              <div className="mt-5 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                    Summary
+                  </p>
+                  <h2 className="mt-3 text-2xl font-semibold text-white">
+                    {payloadPreview.name}
+                  </h2>
+                </div>
+                <span className="small-chip">
+                  {form.dbType === 'POSTGRESQL' ? 'PostgreSQL' : 'MySQL'}
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-3">
                 {[
-                  'Field grouping now reads like a guided intake instead of a generic admin form.',
-                  'The payload preview mirrors what gets stored so the state feels transparent.',
-                  'Animations reinforce interaction without overwhelming the darker, editorial aesthetic.',
+                  {
+                    label: 'Host',
+                    value: form.host || 'Awaiting input',
+                  },
+                  {
+                    label: 'Database',
+                    value: form.databaseName || 'Awaiting input',
+                  },
+                  {
+                    label: 'User',
+                    value: form.username || 'Awaiting input',
+                  },
+                  {
+                    label: 'SSL',
+                    value: form.sslEnabled ? form.sslMode : 'Not required',
+                  },
                 ].map((item) => (
-                  <div key={item} className="surface-card p-4" data-pressable data-tilt>
-                    <p className="text-sm leading-6 text-zinc-300">{item}</p>
+                  <div
+                    key={item.label}
+                    className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4"
+                  >
+                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                      {item.label}
+                    </p>
+                    <p className="mt-2 truncate text-sm font-medium text-white">
+                      {item.value}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -502,23 +438,15 @@ export default function ConnectionRequestPage() {
 
           <section className="surface-panel px-6 py-7" data-animate="panel">
             <div className="relative z-10">
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                Completion state
-              </p>
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4" data-tilt>
-                  <p className="text-xs text-zinc-500">Host ready</p>
-                  <p className="mt-2 text-lg font-semibold text-white">
-                    {form.host ? 'Yes' : 'No'}
-                  </p>
-                </div>
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4" data-tilt>
-                  <p className="text-xs text-zinc-500">Auth ready</p>
-                  <p className="mt-2 text-lg font-semibold text-white">
-                    {form.username && form.encryptedPassword ? 'Yes' : 'No'}
-                  </p>
-                </div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                  Payload preview
+                </p>
+                <span className="small-chip">Backend compatible</span>
               </div>
+              <pre className="data-block mt-4">
+                {JSON.stringify(payloadPreview, null, 2)}
+              </pre>
             </div>
           </section>
         </aside>

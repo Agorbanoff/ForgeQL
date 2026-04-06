@@ -294,6 +294,8 @@ export function useElegantAnimations<T extends HTMLElement>(
     return () => {
       scope.revert()
     }
+    // Consumers intentionally provide a custom dependency list for animation resets.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, dependencies)
 
   return rootRef

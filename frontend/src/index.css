@@ -4,8 +4,8 @@
 :root {
   color-scheme: dark;
   --page-bg: #05070b;
-  --panel-bg: rgba(9, 13, 20, 0.9);
-  --panel-bg-strong: rgba(5, 8, 13, 0.94);
+  --panel-bg: rgba(10, 14, 21, 0.88);
+  --panel-bg-strong: rgba(6, 9, 15, 0.94);
   --panel-border: rgba(255, 255, 255, 0.1);
   --panel-border-strong: rgba(82, 215, 255, 0.24);
   --text-main: #f8f4ee;
@@ -32,9 +32,9 @@ body {
   font-family: var(--font-body);
   color: var(--text-main);
   background:
-    radial-gradient(circle at 9% 6%, rgba(255, 224, 115, 0.38), transparent 26%),
-    radial-gradient(circle at 93% 8%, rgba(255, 188, 208, 0.28), transparent 24%),
-    radial-gradient(circle at 14% 94%, rgba(107, 185, 255, 0.26), transparent 22%),
+    radial-gradient(circle at 10% 8%, rgba(255, 224, 115, 0.24), transparent 24%),
+    radial-gradient(circle at 88% 10%, rgba(255, 188, 208, 0.16), transparent 20%),
+    radial-gradient(circle at 16% 92%, rgba(107, 185, 255, 0.2), transparent 18%),
     linear-gradient(180deg, #0a0d13 0%, #06080d 46%, #05070b 100%);
   background-attachment: fixed;
 }
@@ -48,7 +48,7 @@ body::before {
     linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
   background-size: 160px 160px;
   mask-image: radial-gradient(circle at center, black 40%, transparent 84%);
-  opacity: 0.42;
+  opacity: 0.2;
   pointer-events: none;
   z-index: -2;
 }
@@ -61,7 +61,7 @@ body::after {
     radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.08), transparent 22%),
     radial-gradient(circle at 56% 54%, rgba(82, 215, 255, 0.12), transparent 32%);
   filter: blur(80px);
-  opacity: 0.78;
+  opacity: 0.52;
   pointer-events: none;
   z-index: -1;
 }
@@ -105,7 +105,7 @@ textarea {
 
 @layer components {
   .page-shell {
-    @apply relative z-10 mx-auto w-full max-w-[1380px] px-4 pb-10 sm:px-6 lg:px-8;
+    @apply relative z-10 mx-auto w-full max-w-[1360px] px-4 pb-10 sm:px-6 lg:px-8;
   }
 
   .display-title {
@@ -131,10 +131,10 @@ textarea {
     position: relative;
     overflow: hidden;
     transform-style: preserve-3d;
-    border-radius: 30px;
+    border-radius: 28px;
     border: 1px solid var(--panel-border);
-    background: linear-gradient(180deg, rgba(12, 16, 24, 0.95), rgba(7, 10, 16, 0.9));
-    box-shadow: var(--shadow-soft);
+    background: linear-gradient(180deg, rgba(12, 16, 24, 0.92), rgba(7, 10, 16, 0.88));
+    box-shadow: 0 28px 80px rgba(2, 6, 14, 0.42);
     backdrop-filter: blur(22px);
     transition:
       border-color 260ms ease,
@@ -150,10 +150,10 @@ textarea {
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(circle at var(--spot-x) var(--spot-y), rgba(255, 255, 255, 0.09), transparent 28%),
-      linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 34%, transparent 62%, rgba(82, 215, 255, 0.08)),
-      radial-gradient(circle at top left, rgba(255, 168, 112, 0.16), transparent 24%);
-    opacity: 0.72;
+      radial-gradient(circle at var(--spot-x) var(--spot-y), rgba(255, 255, 255, 0.08), transparent 26%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 32%, transparent 68%, rgba(82, 215, 255, 0.05)),
+      radial-gradient(circle at top left, rgba(255, 168, 112, 0.12), transparent 22%);
+    opacity: 0.66;
     pointer-events: none;
   }
 
@@ -170,8 +170,8 @@ textarea {
     @apply relative overflow-hidden rounded-[24px] border transition;
     transform-style: preserve-3d;
     border-color: rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(16, 20, 28, 0.92), rgba(8, 11, 17, 0.9));
-    box-shadow: 0 18px 70px rgba(4, 8, 18, 0.34);
+    background: linear-gradient(180deg, rgba(16, 20, 28, 0.9), rgba(8, 11, 17, 0.86));
+    box-shadow: 0 18px 48px rgba(4, 8, 18, 0.3);
     transition:
       border-color 260ms ease,
       background 260ms ease,
@@ -191,9 +191,9 @@ textarea {
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(circle at var(--spot-x) var(--spot-y), rgba(82, 215, 255, 0.14), transparent 34%),
+      radial-gradient(circle at var(--spot-x) var(--spot-y), rgba(82, 215, 255, 0.12), transparent 32%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 38%);
-    opacity: 0.82;
+    opacity: 0.72;
     pointer-events: none;
   }
 
@@ -231,6 +231,11 @@ textarea {
     box-shadow:
       0 0 0 3px rgba(82, 215, 255, 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .input-shell:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
   }
 
   .primary-button {
@@ -279,5 +284,110 @@ textarea {
     height: 1px;
     transform-origin: 0% 50%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  }
+
+  .select-shell {
+    position: relative;
+  }
+
+  .select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .select-trigger[aria-expanded='true'] {
+    border-color: rgba(82, 215, 255, 0.4);
+    box-shadow:
+      0 0 0 3px rgba(82, 215, 255, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .select-caret {
+    height: 0.75rem;
+    width: 0.75rem;
+    flex-shrink: 0;
+    border-bottom: 2px solid rgba(228, 234, 244, 0.82);
+    border-right: 2px solid rgba(228, 234, 244, 0.82);
+    transform: rotate(45deg) translateY(-1px);
+    transition:
+      transform 180ms ease,
+      border-color 180ms ease;
+  }
+
+  .select-shell[data-open='true'] .select-caret {
+    transform: rotate(-135deg) translate(-2px, -1px);
+    border-color: rgba(190, 244, 255, 0.96);
+  }
+
+  .select-menu {
+    position: absolute;
+    inset-inline: 0;
+    top: calc(100% + 0.75rem);
+    z-index: 40;
+    max-height: 18rem;
+    overflow: auto;
+    border-radius: 22px;
+    border: 1px solid rgba(82, 215, 255, 0.16);
+    background: linear-gradient(180deg, rgba(12, 16, 24, 0.98), rgba(7, 10, 16, 0.96));
+    box-shadow: 0 24px 70px rgba(2, 6, 14, 0.46);
+    backdrop-filter: blur(24px);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px) scale(0.98);
+    transform-origin: top center;
+    transition:
+      opacity 180ms ease,
+      transform 180ms ease;
+    padding: 0.45rem;
+  }
+
+  .select-shell[data-open='true'] .select-menu {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
+
+  .select-option {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 16px;
+    background: transparent;
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.8rem 0.9rem;
+    text-align: left;
+    transition:
+      border-color 180ms ease,
+      background 180ms ease,
+      transform 180ms ease;
+  }
+
+  .select-option:hover,
+  .select-option:focus-visible {
+    outline: none;
+    border-color: rgba(82, 215, 255, 0.18);
+    background: rgba(82, 215, 255, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .select-option.is-active {
+    border-color: rgba(82, 215, 255, 0.22);
+    background: linear-gradient(180deg, rgba(82, 215, 255, 0.12), rgba(82, 215, 255, 0.04));
+  }
+
+  .select-option-label {
+    font-size: 0.95rem;
+    color: var(--text-main);
+  }
+
+  .select-option-description {
+    font-size: 0.74rem;
+    color: rgba(165, 173, 191, 0.8);
   }
 }

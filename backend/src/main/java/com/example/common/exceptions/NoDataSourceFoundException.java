@@ -5,6 +5,6 @@ import org.springframework.http.HttpStatus;
 
 public class NoDataSourceFoundException extends CustomException {
     public NoDataSourceFoundException(String message) {
-        super(message, HttpStatus.BAD_REQUEST);
+        super(message, HttpStatus.NOT_FOUND);
     }
 }

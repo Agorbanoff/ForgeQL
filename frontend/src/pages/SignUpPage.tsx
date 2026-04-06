@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signUpUser } from '../api/accountApi'
-import { clearSavedDatasource, markSessionActive } from '../lib/appState'
+import { clearSavedDatasource, clearSessionActive } from '../lib/appState'
 import AuthLayout from '../components/AuthLayout'
 
 export default function SignUpPage() {
@@ -27,7 +27,7 @@ export default function SignUpPage() {
     }
 
     if (!email.trim()) {
-      setError('Identifier is required.')
+      setError('Email is required.')
       return
     }
 
@@ -50,16 +50,16 @@ export default function SignUpPage() {
         password,
       })
 
+      clearSessionActive()
       clearSavedDatasource()
-      markSessionActive()
-      setSuccess('Account created successfully. Redirecting to connection setup...')
+      setSuccess('Account created successfully. Redirecting to log in...')
       setUsername('')
       setEmail('')
       setPassword('')
       setConfirmPassword('')
 
       setTimeout(() => {
-        navigate('/connection-request')
+        navigate('/login')
       }, 800)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed.')
@@ -74,7 +74,7 @@ export default function SignUpPage() {
       title="Design a cleaner path into your data layer."
       description="Create a SigmaQL account and move directly into datasource setup with the same polished motion language, dark surfaces, and editorial feel carried across the whole product."
       formTitle="Create account"
-      formDescription="Your frontend still preserves the existing signup behavior while presenting it with a more elevated, guided experience."
+      formDescription="Create your account with a real email and password, then log in to start a session."
       form={
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
@@ -88,17 +88,14 @@ export default function SignUpPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300">Identifier</label>
+            <label className="text-sm font-medium text-zinc-300">Email</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              type="text"
-              placeholder="Email or any identifier"
+              type="email"
+              placeholder="name@example.com"
               className="input-shell"
             />
-            <p className="text-xs leading-6 text-zinc-500">
-              Simple identifiers are converted to a backend-safe email automatically.
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -110,9 +107,6 @@ export default function SignUpPage() {
               placeholder="Password"
               className="input-shell"
             />
-            <p className="text-xs leading-6 text-zinc-500">
-              If the password is shorter than 8 characters, the frontend pads it consistently for you.
-            </p>
           </div>
 
           <div className="space-y-2">

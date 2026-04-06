@@ -21,6 +21,10 @@ export function markSessionActive() {
   localStorage.setItem(SESSION_KEY, 'true')
 }
 
+export function clearSessionActive() {
+  localStorage.removeItem(SESSION_KEY)
+}
+
 export function hasLocalSession() {
   return localStorage.getItem(SESSION_KEY) === 'true'
 }

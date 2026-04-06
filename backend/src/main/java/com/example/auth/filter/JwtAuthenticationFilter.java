@@ -40,12 +40,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (!jwtValidation.validateToken(token)) {
+        if (!jwtValidation.validateAccessToken(token)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        Claims claims = jwtValidation.parseClaims(token);
+        Claims claims = jwtValidation.parseAccessClaims(token);
 
         Integer userId = Integer.valueOf(claims.getSubject());
         String email = claims.get("email", String.class);
@@ -82,7 +82,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     public Integer getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedUser user)) {
+            throw new IllegalStateException("No authenticated user in security context");
+        }
         return user.userId();
     }
 }

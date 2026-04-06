@@ -8,8 +8,6 @@ import com.example.persistence.model.UserAccountEntity;
 import com.example.persistence.repository.JwtRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +28,9 @@ public class JwtService {
     private final RefreshTokenHasher refreshTokenHasher;
     private final Key key;
 
+    public record AuthTokens(String accessToken, String refreshToken) {
+    }
+
     public JwtService(
             JwtRepository jwtRepository,
             JwtValidation jwtValidation,
@@ -46,8 +47,10 @@ public class JwtService {
         long now = System.currentTimeMillis();
 
         return Jwts.builder()
+                .setIssuer(JwtValidation.ISSUER)
                 .setSubject(String.valueOf(userId))
                 .claim("email", email)
+                .claim(JwtValidation.TOKEN_TYPE_CLAIM, JwtValidation.ACCESS_TOKEN_TYPE)
                 .setIssuedAt(new Date(now))
                 .setExpiration(new Date(now + ACCESS_EXPIRATION_MS))
                 .setId(UUID.randomUUID().toString())
@@ -59,7 +62,9 @@ public class JwtService {
         long now = System.currentTimeMillis();
 
         return Jwts.builder()
+                .setIssuer(JwtValidation.ISSUER)
                 .setSubject(String.valueOf(userId))
+                .claim(JwtValidation.TOKEN_TYPE_CLAIM, JwtValidation.REFRESH_TOKEN_TYPE)
                 .setIssuedAt(new Date(now))
                 .setExpiration(new Date(now + REFRESH_EXPIRATION_MS))
                 .setId(UUID.randomUUID().toString())
@@ -78,7 +83,7 @@ public class JwtService {
 
     @Transactional
     public void saveRefreshToken(String rawRefreshToken, UserAccountEntity user) {
-        Claims claims = jwtValidation.parseClaims(rawRefreshToken);
+        Claims claims = jwtValidation.parseRefreshClaims(rawRefreshToken);
 
         JwtEntity entity = new JwtEntity();
         entity.setJti(claims.getId());
@@ -92,12 +97,12 @@ public class JwtService {
     }
 
     @Transactional
-    public String refreshAccessToken(String rawRefreshToken) throws WrongCredentialsException {
-        if (!jwtValidation.validateToken(rawRefreshToken)) {
+    public AuthTokens rotateRefreshToken(String rawRefreshToken) throws WrongCredentialsException {
+        if (!jwtValidation.validateRefreshToken(rawRefreshToken)) {
             throw new WrongCredentialsException("Invalid credentials");
         }
 
-        Claims claims = jwtValidation.parseClaims(rawRefreshToken);
+        Claims claims = jwtValidation.parseRefreshClaims(rawRefreshToken);
         String jti = claims.getId();
         String tokenHash = refreshTokenHasher.hash(rawRefreshToken);
 
@@ -116,17 +121,28 @@ public class JwtService {
             throw new WrongCredentialsException("Invalid credentials");
         }
 
+        if (!storedToken.getUserAccount().getId().equals(Integer.valueOf(claims.getSubject()))) {
+            throw new WrongCredentialsException("Invalid credentials");
+        }
+
+        storedToken.setRevoked(true);
+        jwtRepository.save(storedToken);
+
         UserAccountEntity user = storedToken.getUserAccount();
-        return generateAccessToken(user.getId(), user.getEmail());
+        String accessToken = generateAccessToken(user.getId(), user.getEmail());
+        String refreshToken = generateRefreshToken(user.getId());
+        saveRefreshToken(refreshToken, user);
+
+        return new AuthTokens(accessToken, refreshToken);
     }
 
     @Transactional
     public void revokeRefreshToken(String rawRefreshToken) {
-        if (!jwtValidation.validateToken(rawRefreshToken)) {
+        if (!jwtValidation.validateRefreshToken(rawRefreshToken)) {
             return;
         }
 
-        Claims claims = jwtValidation.parseClaims(rawRefreshToken);
+        Claims claims = jwtValidation.parseRefreshClaims(rawRefreshToken);
 
         jwtRepository.findByJti(claims.getId()).ifPresent(token -> {
             token.setRevoked(true);
@@ -135,7 +151,7 @@ public class JwtService {
     }
 
     public Integer extractUserId(String token) {
-        Claims claims = jwtValidation.parseClaims(token);
+        Claims claims = jwtValidation.parseAccessClaims(token);
         return Integer.valueOf(claims.getSubject());
     }
 

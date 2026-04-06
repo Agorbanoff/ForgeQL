@@ -20,7 +20,7 @@ export default function LoginPage() {
     setSuccess(null)
 
     if (!email.trim()) {
-      setError('Identifier is required.')
+      setError('Email is required.')
       return
     }
 
@@ -59,21 +59,18 @@ export default function LoginPage() {
       title="Smarter queries. Faster answers."
       description="Enter the SigmaQL workspace through a calmer, more premium interface built around secure access, structured querying, and smooth transitions from auth to execution."
       formTitle="Log in"
-      formDescription="Use your email or any simple identifier. The client still applies the existing backend-safe formatting rules for you."
+      formDescription="Log in with the exact email and password you registered with."
       form={
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-zinc-300">Identifier</label>
+            <label className="text-sm font-medium text-zinc-300">Email</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              type="text"
-              placeholder="Email or any identifier"
+              type="email"
+              placeholder="name@example.com"
               className="input-shell"
             />
-            <p className="text-xs leading-6 text-zinc-500">
-              Simple identifiers are converted to a backend-safe email automatically.
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -85,9 +82,6 @@ export default function LoginPage() {
               placeholder="Password"
               className="input-shell"
             />
-            <p className="text-xs leading-6 text-zinc-500">
-              Short passwords are padded automatically to satisfy the current backend rules.
-            </p>
           </div>
 
           {error && (

@@ -8,6 +8,5 @@ public class SigmaQlApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(SigmaQlApplication.class, args);
-
     }
 }

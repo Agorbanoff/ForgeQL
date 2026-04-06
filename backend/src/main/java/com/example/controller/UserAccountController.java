@@ -15,11 +15,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/account")
-@CrossOrigin(origins = "http://localhost:5173")
 public class UserAccountController {
     private final UserAccountService userAccountService;
     private final AuthCookieService authCookieService;
@@ -37,15 +39,14 @@ public class UserAccountController {
         return ResponseEntity.ok(new CurrentUserDTO(user.userId(), user.email()));
     }
 
+    @GetMapping("/csrf")
+    public ResponseEntity<Map<String, String>> csrf(CsrfToken csrfToken) {
+        return ResponseEntity.ok(Map.of("token", csrfToken.getToken()));
+    }
+
     @PostMapping(value = "/signup")
-    public ResponseEntity<Void> signUp(@Valid @RequestBody UserSignUpDTO userSignUpDTO, HttpServletResponse httpServletResponse) throws EmailAlreadyInUseException {
-        TokenResponseDTO tokenResponseDTO = userAccountService.signUp(userSignUpDTO);
-
-        authCookieService.addRefreshTokenCookie(httpServletResponse, tokenResponseDTO.getRefreshToken());
-        authCookieService.addAccessTokenCookie(httpServletResponse, tokenResponseDTO.getAccessToken());
-
-        tokenResponseDTO.setAccessToken(null);
-        tokenResponseDTO.setRefreshToken(null);
+    public ResponseEntity<Void> signUp(@Valid @RequestBody UserSignUpDTO userSignUpDTO) throws EmailAlreadyInUseException {
+        userAccountService.signUp(userSignUpDTO);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -58,9 +59,6 @@ public class UserAccountController {
 
         authCookieService.addRefreshTokenCookie(httpServletResponse, tokenResponseDTO.getRefreshToken());
         authCookieService.addAccessTokenCookie(httpServletResponse, tokenResponseDTO.getAccessToken());
-
-        tokenResponseDTO.setAccessToken(null);
-        tokenResponseDTO.setRefreshToken(null);
 
         return ResponseEntity
                 .status(HttpStatus.OK)

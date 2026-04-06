@@ -1,0 +1,35 @@
+HELP.md
+
+# Build output
+target/
+build/
+out/
+*.class
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS / logs
+.DS_Store
+Thumbs.db
+*.log
+
+# Environment and local secrets
+.env
+.env.*
+*.secret
+src/main/resources/env.properties
+src/main/resources/application-local.properties
+src/main/resources/application-*.local.properties
+
+# Temporary files
+*.tmp
+*.bak
+*.swp

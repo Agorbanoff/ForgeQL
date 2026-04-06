@@ -29,7 +29,7 @@ public class UserAccountService {
     }
 
     @Transactional
-    public TokenResponseDTO signUp(UserSignUpDTO dto) throws EmailAlreadyInUseException {
+    public void signUp(UserSignUpDTO dto) throws EmailAlreadyInUseException {
         if (userAccountRepository.existsByEmail(dto.getEmail())) {
             throw new EmailAlreadyInUseException("Email is already in use");
         }
@@ -39,13 +39,7 @@ public class UserAccountService {
         user.setEmail(dto.getEmail());
         user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
 
-        UserAccountEntity savedUser = userAccountRepository.save(user);
-
-        String accessToken = jwtService.generateAccessToken(savedUser.getId(), savedUser.getEmail());
-        String refreshToken = jwtService.generateRefreshToken(savedUser.getId());
-        jwtService.saveRefreshToken(refreshToken, savedUser);
-
-        return new TokenResponseDTO("Bearer", accessToken, refreshToken);
+        userAccountRepository.save(user);
     }
 
     @Transactional

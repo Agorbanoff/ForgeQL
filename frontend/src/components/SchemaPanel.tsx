@@ -21,7 +21,7 @@ export function SchemaPanel({ connection }: SchemaPanelProps) {
       </div>
 
       {connection && (
-        <div className="surface-card p-5" data-animate="panel" data-pressable>
+        <div className="surface-card p-5" data-animate="panel" data-pressable data-tilt>
           <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/80">
             Connected DB
           </p>
@@ -46,6 +46,7 @@ export function SchemaPanel({ connection }: SchemaPanelProps) {
               className="surface-card p-5"
               data-animate="panel"
               data-pressable
+              data-tilt
             >
               <div className="flex items-start justify-between gap-3">
                 <div>

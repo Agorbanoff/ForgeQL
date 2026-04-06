@@ -182,7 +182,7 @@ export default function ConnectionRequestPage() {
   }
 
   return (
-    <main ref={rootRef} className="page-shell py-6 sm:py-8">
+    <main ref={rootRef} className="page-shell py-6 sm:py-8" data-animate="scene">
       <div className="grid gap-6 xl:grid-cols-[1.12fr_0.88fr]">
         <section className="surface-panel px-6 py-7 sm:px-8 sm:py-8 lg:px-10" data-animate="hero">
           <div
@@ -226,6 +226,7 @@ export default function ConnectionRequestPage() {
                   className="surface-card p-5"
                   data-animate="panel"
                   data-pressable
+                  data-tilt
                 >
                   <div className="mb-4 inline-flex rounded-full border border-white/8 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-cyan-200">
                     Flow
@@ -240,7 +241,7 @@ export default function ConnectionRequestPage() {
 
         <section className="surface-panel px-6 py-7 sm:px-8 sm:py-8" data-animate="panel">
           <div className="relative z-10 grid gap-4">
-            <div className="surface-card p-5">
+            <div className="surface-card p-5" data-tilt>
               <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                 Draft summary
               </p>
@@ -272,7 +273,7 @@ export default function ConnectionRequestPage() {
               </div>
             </div>
 
-            <div className="surface-card p-5">
+            <div className="surface-card p-5" data-tilt>
               <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                 Payload preview
               </p>
@@ -454,6 +455,8 @@ export default function ConnectionRequestPage() {
               </div>
             )}
 
+            <div className="subtle-divider mt-6" data-animate="line" />
+
             <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
               <p className="max-w-xl text-sm leading-6 text-zinc-400">
                 When you save, SigmaQL keeps the local summary for the workspace and then moves you into the playground flow.
@@ -465,6 +468,11 @@ export default function ConnectionRequestPage() {
                 disabled={loading}
                 className="primary-button"
                 data-pressable
+                data-glow={
+                  form.host && form.databaseName && form.username && form.encryptedPassword
+                    ? 'pulse'
+                    : undefined
+                }
               >
                 {loading ? 'Saving...' : 'Save details'}
               </button>
@@ -484,7 +492,7 @@ export default function ConnectionRequestPage() {
                   'The payload preview mirrors what gets stored so the state feels transparent.',
                   'Animations reinforce interaction without overwhelming the darker, editorial aesthetic.',
                 ].map((item) => (
-                  <div key={item} className="surface-card p-4" data-pressable>
+                  <div key={item} className="surface-card p-4" data-pressable data-tilt>
                     <p className="text-sm leading-6 text-zinc-300">{item}</p>
                   </div>
                 ))}
@@ -498,13 +506,13 @@ export default function ConnectionRequestPage() {
                 Completion state
               </p>
               <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4" data-tilt>
                   <p className="text-xs text-zinc-500">Host ready</p>
                   <p className="mt-2 text-lg font-semibold text-white">
                     {form.host ? 'Yes' : 'No'}
                   </p>
                 </div>
-                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4">
+                <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4" data-tilt>
                   <p className="text-xs text-zinc-500">Auth ready</p>
                   <p className="mt-2 text-lg font-semibold text-white">
                     {form.username && form.encryptedPassword ? 'Yes' : 'No'}

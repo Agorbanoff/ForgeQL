@@ -53,6 +53,7 @@ export default function AuthLayout({
     <main
       ref={rootRef}
       className="page-shell flex min-h-[calc(100vh-116px)] items-center py-6 sm:py-8"
+      data-animate="scene"
     >
       <div className="grid w-full gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <section className="surface-panel px-6 py-7 sm:px-8 sm:py-9 lg:px-10">
@@ -93,7 +94,7 @@ export default function AuthLayout({
             </div>
 
             <div className="mt-8 grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
-              <div className="surface-card p-5 sm:p-6" data-animate="panel">
+              <div className="surface-card p-5 sm:p-6" data-animate="panel" data-tilt>
                 <div className="flex flex-wrap gap-2">
                   <span className="small-chip">Secure</span>
                   <span className="small-chip">Observable</span>
@@ -130,13 +131,22 @@ export default function AuthLayout({
                 </div>
               </div>
 
-              <div className="grid gap-4">
-                {stats.map((stat) => (
-                  <div key={stat.label} className="surface-card p-5" data-animate="panel">
-                    <p className="stat-value text-4xl text-white">{stat.value}</p>
-                    <p className="mt-2 text-sm text-zinc-400">{stat.label}</p>
-                  </div>
-                ))}
+                <div className="grid gap-4">
+                {stats.map((stat) => {
+                  const isNumeric = /^\d+$/.test(stat.value)
+
+                  return (
+                    <div key={stat.label} className="surface-card p-5" data-animate="panel" data-tilt>
+                      <p
+                        className="stat-value text-4xl text-white"
+                        {...(isNumeric ? { 'data-count-up': stat.value } : {})}
+                      >
+                        {stat.value}
+                      </p>
+                      <p className="mt-2 text-sm text-zinc-400">{stat.label}</p>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
@@ -147,6 +157,7 @@ export default function AuthLayout({
                   className="surface-card p-5"
                   data-animate="panel"
                   data-pressable
+                  data-tilt
                 >
                   <div className="mb-4 inline-flex rounded-full border border-white/8 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-cyan-200">
                     Preview
@@ -170,7 +181,7 @@ export default function AuthLayout({
             <p className="display-copy mt-4 text-sm sm:text-base">{formDescription}</p>
 
             <div className="mt-8 flex-1">{form}</div>
-            <div className="subtle-divider mt-8" />
+            <div className="subtle-divider mt-8" data-animate="line" />
             <div className="mt-5 text-sm text-zinc-400">{footer}</div>
           </div>
         </section>

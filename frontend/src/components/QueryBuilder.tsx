@@ -112,13 +112,16 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
           disabled={loading || selectedFields.length === 0}
           className="primary-button"
           data-pressable
+          data-glow={
+            !loading && selectedFields.length > 0 ? 'pulse' : undefined
+          }
         >
           {loading ? 'Running...' : 'Run query'}
         </button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="surface-card p-5" data-animate="panel">
+        <div className="surface-card p-5" data-animate="panel" data-tilt>
           <label className="text-xs uppercase tracking-[0.2em] text-zinc-500">
             Entity
           </label>
@@ -139,7 +142,7 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
           </select>
         </div>
 
-        <div className="surface-card p-5" data-animate="panel">
+        <div className="surface-card p-5" data-animate="panel" data-tilt>
           <label className="text-xs uppercase tracking-[0.2em] text-zinc-500">
             Limit
           </label>
@@ -152,7 +155,7 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
         </div>
       </div>
 
-      <div className="surface-card p-5" data-animate="panel">
+      <div className="surface-card p-5" data-animate="panel" data-tilt>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Fields</p>
@@ -189,7 +192,7 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
         </div>
       </div>
 
-      <div className="surface-card p-5" data-animate="panel">
+      <div className="surface-card p-5" data-animate="panel" data-tilt>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Filters</p>
@@ -221,6 +224,7 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
                 key={filter.id}
                 className="grid gap-3 rounded-[24px] border border-white/8 bg-white/[0.02] p-4 md:grid-cols-[1.1fr_0.95fr_1.4fr_auto]"
                 data-animate="panel"
+                data-tilt
               >
                 <select
                   value={filter.field}
@@ -277,7 +281,7 @@ export function QueryBuilder({ onRunQuery, loading }: QueryBuilderProps) {
         )}
       </div>
 
-      <div className="surface-card p-5" data-animate="panel">
+      <div className="surface-card p-5" data-animate="panel" data-tilt>
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">

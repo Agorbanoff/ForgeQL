@@ -29,7 +29,7 @@ export function ResponsePanel({
         </p>
       </div>
 
-      <div className="surface-card p-5" data-animate="panel">
+      <div className="surface-card p-5" data-animate="panel" data-tilt>
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Status</p>
           <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-300">

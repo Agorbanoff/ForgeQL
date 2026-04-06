@@ -61,7 +61,7 @@ export default function PlaygroundPage() {
   }
 
   return (
-    <main ref={rootRef} className="page-shell py-6 sm:py-8">
+    <main ref={rootRef} className="page-shell py-6 sm:py-8" data-animate="scene">
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <section className="surface-panel px-6 py-7 sm:px-8 sm:py-8 lg:px-10" data-animate="hero">
           <div
@@ -108,7 +108,7 @@ export default function PlaygroundPage() {
         </section>
 
         <section className="grid gap-4" data-animate="panel">
-          <div className="surface-panel px-6 py-7">
+          <div className="surface-panel px-6 py-7" data-tilt>
             <div className="relative z-10">
               <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                 Active source
@@ -126,12 +126,17 @@ export default function PlaygroundPage() {
 
           <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
             {workspaceStats.map((stat) => (
-              <div key={stat.label} className="surface-panel px-6 py-6" data-pressable>
+              <div key={stat.label} className="surface-panel px-6 py-6" data-pressable data-tilt>
                 <div className="relative z-10">
                   <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                     {stat.label}
                   </p>
-                  <p className="stat-value mt-3 text-5xl text-white">{stat.value}</p>
+                  <p
+                    className="stat-value mt-3 text-5xl text-white"
+                    {...(/^\d+$/.test(stat.value) ? { 'data-count-up': stat.value } : {})}
+                  >
+                    {stat.value}
+                  </p>
                 </div>
               </div>
             ))}

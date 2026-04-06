@@ -2,9 +2,11 @@ services:
   postgres:
     image: postgres:16
     container_name: sigmaql
+    env_file:
+      - ./env.properties
     environment:
-      POSTGRES_DB: sigmaql
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ilikepizza
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5434:5432"

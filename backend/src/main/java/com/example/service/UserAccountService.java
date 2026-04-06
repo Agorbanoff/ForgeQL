@@ -7,7 +7,7 @@ import com.example.controller.dtos.request.UserSignUpDTO;
 import com.example.controller.dtos.response.TokenResponseDTO;
 import com.example.persistence.model.UserAccountEntity;
 import com.example.persistence.repository.UserAccountRepository;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,12 +16,12 @@ public class UserAccountService {
 
     private final UserAccountRepository userAccountRepository;
     private final JwtService jwtService;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
     public UserAccountService(
             UserAccountRepository userAccountRepository,
             JwtService jwtService,
-            BCryptPasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder
     ) {
         this.userAccountRepository = userAccountRepository;
         this.jwtService = jwtService;

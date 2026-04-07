@@ -12,20 +12,22 @@ import java.util.Optional;
 public interface DataSourceRepository extends JpaRepository<DataSourceEntity, Integer> {
     Optional<DataSourceEntity> findByIdAndUserAccount_Id(Integer id, Integer userId);
     List<DataSourceEntity> findAllByUserAccount_Id(Integer userId);
-    boolean existsByUserAccountIdAndDbTypeAndHostAndPortAndDatabaseNameAndUsername(
+    boolean existsByUserAccount_IdAndDbTypeAndHostAndPortAndDatabaseNameAndSchemaNameAndUsername(
             Integer userId,
             DatabaseTypes dbType,
             String host,
             Integer port,
             String databaseName,
+            String schemaName,
             String username
     );
-    boolean existsByUserAccountIdAndDbTypeAndHostAndPortAndDatabaseNameAndUsernameAndIdNot(
+    boolean existsByUserAccount_IdAndDbTypeAndHostAndPortAndDatabaseNameAndSchemaNameAndUsernameAndIdNot(
             Integer userId,
             DatabaseTypes dbType,
             String host,
             Integer port,
             String databaseName,
+            String schemaName,
             String username,
             Integer id
     );

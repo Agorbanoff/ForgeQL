@@ -2,6 +2,7 @@ package com.example.controller;
 
 import com.example.auth.filter.JwtAuthenticationFilter;
 import com.example.controller.dtos.request.ReqDataSourceDTO;
+import com.example.controller.dtos.request.UpdateDataSourceDTO;
 import com.example.controller.dtos.response.ResDataSourceDTO;
 import com.example.service.DataSourceService;
 import jakarta.validation.Valid;
@@ -60,12 +61,12 @@ public class DataSourceController {
     }
 
     @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Void> updateDataSource(@Valid @RequestBody ReqDataSourceDTO reqDataSourceDTO,
+    public ResponseEntity<Void> updateDataSource(@Valid @RequestBody UpdateDataSourceDTO updateDataSourceDTO,
                                                  @PathVariable Integer id) {
 
         Integer userId = jwtAuthenticationFilter.getCurrentUserId();
 
-        dataSourceService.updateDataSource(reqDataSourceDTO, userId, id);
+        dataSourceService.updateDataSource(updateDataSourceDTO, userId, id);
 
         return ResponseEntity
                 .status(HttpStatus.OK)

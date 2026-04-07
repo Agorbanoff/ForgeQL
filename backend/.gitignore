@@ -33,3 +33,6 @@ src/main/resources/application-*.local.properties
 *.tmp
 *.bak
 *.swp
+
+# Local technical blueprints
+src/main/java/com/example/core/implementation.md

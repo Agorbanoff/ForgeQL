@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -43,20 +42,6 @@ public class DataSourceConfig {
     }
 
     @Bean
-    @ConfigurationProperties("query.datasource")
-    public DataSourceProperties queryDataSourceProperties() {
-        return new DataSourceProperties();
-    }
-
-    @Bean
-    @ConfigurationProperties("query.datasource.hikari")
-    public DataSource queryDataSource() {
-        return queryDataSourceProperties()
-                .initializeDataSourceBuilder()
-                .build();
-    }
-
-    @Bean
     @Primary
     public LocalContainerEntityManagerFactoryBean appEntityManagerFactory(
             EntityManagerFactoryBuilder builder,
@@ -80,10 +65,5 @@ public class DataSourceConfig {
             @Qualifier("appEntityManagerFactory") LocalContainerEntityManagerFactoryBean appEntityManagerFactory
     ) {
         return new JpaTransactionManager(appEntityManagerFactory.getObject());
-    }
-
-    @Bean
-    public JdbcTemplate queryJdbcTemplate(@Qualifier("queryDataSource") DataSource queryDataSource) {
-        return new JdbcTemplate(queryDataSource);
     }
 }

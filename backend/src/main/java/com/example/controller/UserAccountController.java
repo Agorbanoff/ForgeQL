@@ -3,9 +3,9 @@ package com.example.controller;
 import com.example.auth.filter.AuthenticatedUser;
 import com.example.common.exceptions.EmailAlreadyInUseException;
 import com.example.common.exceptions.WrongCredentialsException;
-import com.example.controller.dtos.request.CurrentUserDTO;
 import com.example.controller.dtos.request.UserLogInDTO;
 import com.example.controller.dtos.request.UserSignUpDTO;
+import com.example.controller.dtos.response.CurrentUserDTO;
 import com.example.controller.dtos.response.TokenResponseDTO;
 import com.example.service.AuthCookieService;
 import com.example.service.UserAccountService;
@@ -57,8 +57,8 @@ public class UserAccountController {
     public ResponseEntity<Void> logIn(@Valid @RequestBody UserLogInDTO userLogInDTO, HttpServletResponse httpServletResponse) throws WrongCredentialsException {
         TokenResponseDTO tokenResponseDTO = userAccountService.logIn(userLogInDTO);
 
-        authCookieService.addRefreshTokenCookie(httpServletResponse, tokenResponseDTO.getRefreshToken());
-        authCookieService.addAccessTokenCookie(httpServletResponse, tokenResponseDTO.getAccessToken());
+        authCookieService.addRefreshTokenCookie(httpServletResponse, tokenResponseDTO.refreshToken());
+        authCookieService.addAccessTokenCookie(httpServletResponse, tokenResponseDTO.accessToken());
 
         return ResponseEntity
                 .status(HttpStatus.OK)

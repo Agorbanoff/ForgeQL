@@ -3,6 +3,7 @@ package com.example.controller;
 import com.example.auth.filter.JwtAuthenticationFilter;
 import com.example.controller.dtos.request.ReqDataSourceDTO;
 import com.example.controller.dtos.request.UpdateDataSourceDTO;
+import com.example.controller.dtos.response.ResDataSourceConnectionTestDTO;
 import com.example.controller.dtos.response.ResDataSourceDTO;
 import com.example.service.DataSourceService;
 import jakarta.validation.Valid;
@@ -82,5 +83,16 @@ public class DataSourceController {
         return ResponseEntity
                 .status(HttpStatus.NO_CONTENT)
                 .build();
+    }
+
+    @PostMapping("/{id}/test-connection")
+    public ResponseEntity<ResDataSourceConnectionTestDTO> testDataSourceConnection(@PathVariable Integer id) {
+        Integer userId = jwtAuthenticationFilter.getCurrentUserId();
+
+        ResDataSourceConnectionTestDTO response = dataSourceService.testDataSourceConnection(id, userId);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(response);
     }
 }

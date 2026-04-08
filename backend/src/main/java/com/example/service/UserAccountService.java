@@ -30,24 +30,24 @@ public class UserAccountService {
 
     @Transactional
     public void signUp(UserSignUpDTO dto) throws EmailAlreadyInUseException {
-        if (userAccountRepository.existsByEmail(dto.getEmail())) {
+        if (userAccountRepository.existsByEmail(dto.email())) {
             throw new EmailAlreadyInUseException("Email is already in use");
         }
 
         UserAccountEntity user = new UserAccountEntity();
-        user.setUsername(dto.getUsername());
-        user.setEmail(dto.getEmail());
-        user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+        user.setUsername(dto.username());
+        user.setEmail(dto.email());
+        user.setPasswordHash(passwordEncoder.encode(dto.password()));
 
         userAccountRepository.save(user);
     }
 
     @Transactional
     public TokenResponseDTO logIn(UserLogInDTO dto) throws WrongCredentialsException {
-        UserAccountEntity user = userAccountRepository.findByEmail(dto.getEmail())
+        UserAccountEntity user = userAccountRepository.findByEmail(dto.email())
                 .orElseThrow(() -> new WrongCredentialsException("Invalid credentials"));
 
-        if (!passwordEncoder.matches(dto.getPassword(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(dto.password(), user.getPasswordHash())) {
             throw new WrongCredentialsException("Invalid credentials");
         }
 

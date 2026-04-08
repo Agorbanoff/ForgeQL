@@ -1,14 +1,8 @@
 package com.example.controller.dtos.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class TokenResponseDTO {
-    private String type;
-    private String accessToken;
-    private String refreshToken;
+public record TokenResponseDTO(
+        String type,
+        String accessToken,
+        String refreshToken
+) {
 }

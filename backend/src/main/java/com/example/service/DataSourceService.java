@@ -8,7 +8,10 @@ import com.example.common.exceptions.UnsupportedDatabaseTypeException;
 import com.example.common.exceptions.UserNotFoundException;
 import com.example.controller.dtos.request.ReqDataSourceDTO;
 import com.example.controller.dtos.request.UpdateDataSourceDTO;
+import com.example.controller.dtos.response.ResDataSourceConnectionTestDTO;
 import com.example.controller.dtos.response.ResDataSourceDTO;
+import com.example.core.postgres.connection.PostgresConnectionTestResult;
+import com.example.core.postgres.connection.PostgresConnectionTestService;
 import com.example.persistence.Enums.DataSourceConnectionStatus;
 import com.example.persistence.Enums.DataSourceStatus;
 import com.example.persistence.Enums.DatabaseTypes;
@@ -47,44 +50,63 @@ public class DataSourceService {
     private final DataSourceRepository dataSourceRepository;
     private final UserAccountRepository userAccountRepository;
     private final DataSourcePasswordCipher dataSourcePasswordCipher;
+    private final PostgresConnectionTestService postgresConnectionTestService;
 
     @Autowired
     public DataSourceService(DataSourceRepository dataSourceRepository,
                              UserAccountRepository userAccountRepository,
-                             DataSourcePasswordCipher dataSourcePasswordCipher) {
+                             DataSourcePasswordCipher dataSourcePasswordCipher,
+                             PostgresConnectionTestService postgresConnectionTestService) {
         this.dataSourceRepository = dataSourceRepository;
         this.userAccountRepository = userAccountRepository;
         this.dataSourcePasswordCipher = dataSourcePasswordCipher;
+        this.postgresConnectionTestService = postgresConnectionTestService;
     }
 
     private ResDataSourceDTO mapToDTO(DataSourceEntity dataSourceEntity) {
-        ResDataSourceDTO resDataSourceDTO = new ResDataSourceDTO();
-        resDataSourceDTO.setId(dataSourceEntity.getId());
-        resDataSourceDTO.setOwnerUserId(dataSourceEntity.getUserAccount().getId());
-        resDataSourceDTO.setDisplayName(dataSourceEntity.getDisplayName());
-        resDataSourceDTO.setDbType(dataSourceEntity.getDbType());
-        resDataSourceDTO.setHost(dataSourceEntity.getHost());
-        resDataSourceDTO.setPort(dataSourceEntity.getPort());
-        resDataSourceDTO.setDatabaseName(dataSourceEntity.getDatabaseName());
-        resDataSourceDTO.setSchemaName(dataSourceEntity.getSchemaName());
-        resDataSourceDTO.setUsername(dataSourceEntity.getUsername());
-        resDataSourceDTO.setSslMode(dataSourceEntity.getSslMode());
-        resDataSourceDTO.setConnectTimeoutMs(dataSourceEntity.getConnectTimeoutMs());
-        resDataSourceDTO.setSocketTimeoutMs(dataSourceEntity.getSocketTimeoutMs());
-        resDataSourceDTO.setApplicationName(dataSourceEntity.getApplicationName());
-        resDataSourceDTO.setSslRootCertRef(dataSourceEntity.getSslRootCertRef());
-        resDataSourceDTO.setExtraJdbcOptionsJson(dataSourceEntity.getExtraJdbcOptionsJson());
-        resDataSourceDTO.setStatus(dataSourceEntity.getStatus());
-        resDataSourceDTO.setLastConnectionTestAt(dataSourceEntity.getLastConnectionTestAt());
-        resDataSourceDTO.setLastConnectionStatus(dataSourceEntity.getLastConnectionStatus());
-        resDataSourceDTO.setLastConnectionError(dataSourceEntity.getLastConnectionError());
-        resDataSourceDTO.setLastSchemaGeneratedAt(dataSourceEntity.getLastSchemaGeneratedAt());
-        resDataSourceDTO.setLastSchemaFingerprint(dataSourceEntity.getLastSchemaFingerprint());
-        resDataSourceDTO.setServerVersion(dataSourceEntity.getServerVersion());
-        resDataSourceDTO.setCreatedAt(dataSourceEntity.getCreatedAt());
-        resDataSourceDTO.setUpdatedAt(dataSourceEntity.getUpdatedAt());
+        return new ResDataSourceDTO(
+                dataSourceEntity.getId(),
+                dataSourceEntity.getUserAccount().getId(),
+                dataSourceEntity.getDisplayName(),
+                dataSourceEntity.getDbType(),
+                dataSourceEntity.getHost(),
+                dataSourceEntity.getPort(),
+                dataSourceEntity.getDatabaseName(),
+                dataSourceEntity.getSchemaName(),
+                dataSourceEntity.getUsername(),
+                dataSourceEntity.getSslMode(),
+                dataSourceEntity.getConnectTimeoutMs(),
+                dataSourceEntity.getSocketTimeoutMs(),
+                dataSourceEntity.getApplicationName(),
+                dataSourceEntity.getSslRootCertRef(),
+                dataSourceEntity.getExtraJdbcOptionsJson(),
+                dataSourceEntity.getStatus(),
+                dataSourceEntity.getLastConnectionTestAt(),
+                dataSourceEntity.getLastConnectionStatus(),
+                dataSourceEntity.getLastConnectionError(),
+                dataSourceEntity.getLastSchemaGeneratedAt(),
+                dataSourceEntity.getLastSchemaFingerprint(),
+                dataSourceEntity.getServerVersion(),
+                dataSourceEntity.getCreatedAt(),
+                dataSourceEntity.getUpdatedAt()
+        );
+    }
 
-        return resDataSourceDTO;
+    private ResDataSourceConnectionTestDTO mapToConnectionTestDTO(
+            PostgresConnectionTestResult result,
+            DataSourceEntity dataSourceEntity
+    ) {
+        return new ResDataSourceConnectionTestDTO(
+                result.datasourceId(),
+                result.successful(),
+                dataSourceEntity.getStatus(),
+                dataSourceEntity.getLastConnectionTestAt(),
+                dataSourceEntity.getLastConnectionStatus(),
+                dataSourceEntity.getLastConnectionError(),
+                result.databaseProductName(),
+                dataSourceEntity.getServerVersion(),
+                result.message()
+        );
     }
 
     private void validatePostgreSqlOnly(DatabaseTypes dbType) {
@@ -120,48 +142,48 @@ public class DataSourceService {
     }
 
     private NormalizedConnectionDefinition normalizeCreateRequest(ReqDataSourceDTO reqDataSourceDTO) {
-        validatePostgreSqlOnly(reqDataSourceDTO.getDbType());
+        validatePostgreSqlOnly(reqDataSourceDTO.dbType());
 
         return new NormalizedConnectionDefinition(
-                normalizeRequiredValue(reqDataSourceDTO.getDisplayName(), "displayName"),
-                reqDataSourceDTO.getDbType(),
-                normalizeRequiredValue(reqDataSourceDTO.getHost(), "host"),
-                reqDataSourceDTO.getPort(),
-                normalizeRequiredValue(reqDataSourceDTO.getDatabaseName(), "databaseName"),
-                normalizeRequiredValue(reqDataSourceDTO.getSchemaName(), "schemaName"),
-                normalizeRequiredValue(reqDataSourceDTO.getUsername(), "username"),
-                normalizeRequiredValue(reqDataSourceDTO.getPassword(), "password"),
+                normalizeRequiredValue(reqDataSourceDTO.displayName(), "displayName"),
+                reqDataSourceDTO.dbType(),
+                normalizeRequiredValue(reqDataSourceDTO.host(), "host"),
+                reqDataSourceDTO.port(),
+                normalizeRequiredValue(reqDataSourceDTO.databaseName(), "databaseName"),
+                normalizeRequiredValue(reqDataSourceDTO.schemaName(), "schemaName"),
+                normalizeRequiredValue(reqDataSourceDTO.username(), "username"),
+                normalizeRequiredValue(reqDataSourceDTO.password(), "password"),
                 true,
-                reqDataSourceDTO.getSslMode(),
-                reqDataSourceDTO.getConnectTimeoutMs(),
-                reqDataSourceDTO.getSocketTimeoutMs(),
-                normalizeOptionalValue(reqDataSourceDTO.getApplicationName()),
-                normalizeOptionalValue(reqDataSourceDTO.getSslRootCertRef()),
-                normalizeOptionalValue(reqDataSourceDTO.getExtraJdbcOptionsJson())
+                reqDataSourceDTO.sslMode(),
+                reqDataSourceDTO.connectTimeoutMs(),
+                reqDataSourceDTO.socketTimeoutMs(),
+                normalizeOptionalValue(reqDataSourceDTO.applicationName()),
+                normalizeOptionalValue(reqDataSourceDTO.sslRootCertRef()),
+                normalizeOptionalValue(reqDataSourceDTO.extraJdbcOptionsJson())
         );
     }
 
     private NormalizedConnectionDefinition normalizeUpdateRequest(UpdateDataSourceDTO updateDataSourceDTO) {
-        validatePostgreSqlOnly(updateDataSourceDTO.getDbType());
+        validatePostgreSqlOnly(updateDataSourceDTO.dbType());
 
-        String normalizedPassword = normalizeOptionalPassword(updateDataSourceDTO.getPassword());
+        String normalizedPassword = normalizeOptionalPassword(updateDataSourceDTO.password());
 
         return new NormalizedConnectionDefinition(
-                normalizeRequiredValue(updateDataSourceDTO.getDisplayName(), "displayName"),
-                updateDataSourceDTO.getDbType(),
-                normalizeRequiredValue(updateDataSourceDTO.getHost(), "host"),
-                updateDataSourceDTO.getPort(),
-                normalizeRequiredValue(updateDataSourceDTO.getDatabaseName(), "databaseName"),
-                normalizeRequiredValue(updateDataSourceDTO.getSchemaName(), "schemaName"),
-                normalizeRequiredValue(updateDataSourceDTO.getUsername(), "username"),
+                normalizeRequiredValue(updateDataSourceDTO.displayName(), "displayName"),
+                updateDataSourceDTO.dbType(),
+                normalizeRequiredValue(updateDataSourceDTO.host(), "host"),
+                updateDataSourceDTO.port(),
+                normalizeRequiredValue(updateDataSourceDTO.databaseName(), "databaseName"),
+                normalizeRequiredValue(updateDataSourceDTO.schemaName(), "schemaName"),
+                normalizeRequiredValue(updateDataSourceDTO.username(), "username"),
                 normalizedPassword,
                 normalizedPassword != null,
-                updateDataSourceDTO.getSslMode(),
-                updateDataSourceDTO.getConnectTimeoutMs(),
-                updateDataSourceDTO.getSocketTimeoutMs(),
-                normalizeOptionalValue(updateDataSourceDTO.getApplicationName()),
-                normalizeOptionalValue(updateDataSourceDTO.getSslRootCertRef()),
-                normalizeOptionalValue(updateDataSourceDTO.getExtraJdbcOptionsJson())
+                updateDataSourceDTO.sslMode(),
+                updateDataSourceDTO.connectTimeoutMs(),
+                updateDataSourceDTO.socketTimeoutMs(),
+                normalizeOptionalValue(updateDataSourceDTO.applicationName()),
+                normalizeOptionalValue(updateDataSourceDTO.sslRootCertRef()),
+                normalizeOptionalValue(updateDataSourceDTO.extraJdbcOptionsJson())
         );
     }
 
@@ -314,5 +336,13 @@ public class DataSourceService {
         }
 
         dataSourceRepository.save(dataSourceEntity);
+    }
+
+    public ResDataSourceConnectionTestDTO testDataSourceConnection(Integer id, Integer userId) {
+        PostgresConnectionTestResult result = postgresConnectionTestService.test(id, userId);
+        DataSourceEntity dataSourceEntity = dataSourceRepository.findByIdAndUserAccount_Id(id, userId)
+                .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
+
+        return mapToConnectionTestDTO(result, dataSourceEntity);
     }
 }

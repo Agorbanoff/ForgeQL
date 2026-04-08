@@ -3,7 +3,7 @@ package com.example.core.postgres.schema;
 import com.example.core.postgres.connection.PostgresRuntimeConnectionDefinition;
 import com.example.core.postgres.connection.PostgresRuntimeConnectionResolver;
 import com.example.core.postgres.introspection.PostgresMetadataIntrospector;
-import com.example.core.postgres.schema.model.PostgresSchemaSnapshot;
+import com.example.core.postgres.schema.model.GeneratedSchema;
 import com.example.core.postgres.schema.registry.SchemaRegistryService;
 import com.example.core.postgres.schema.validation.SchemaValidationService;
 import org.springframework.stereotype.Service;
@@ -34,7 +34,7 @@ public class SchemaGenerationService {
         this.schemaRegistryService = schemaRegistryService;
     }
 
-    public PostgresSchemaSnapshot generate(Integer datasourceId, Integer userId) {
+    public GeneratedSchema generate(Integer datasourceId, Integer userId) {
         PostgresRuntimeConnectionDefinition definition = runtimeConnectionResolver.resolve(datasourceId, userId);
         throw new UnsupportedOperationException("Schema generation is not implemented yet for datasource " + definition.datasourceId());
     }

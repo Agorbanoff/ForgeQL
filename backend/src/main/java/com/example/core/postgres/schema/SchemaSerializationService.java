@@ -1,6 +1,6 @@
 package com.example.core.postgres.schema;
 
-import com.example.core.postgres.schema.model.PostgresSchemaSnapshot;
+import com.example.core.postgres.schema.model.GeneratedSchema;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -14,7 +14,7 @@ public class SchemaSerializationService {
         this.objectMapper = objectMapper;
     }
 
-    public String serialize(PostgresSchemaSnapshot snapshot) {
+    public String serialize(GeneratedSchema snapshot) {
         try {
             return objectMapper.writeValueAsString(snapshot);
         } catch (JsonProcessingException e) {

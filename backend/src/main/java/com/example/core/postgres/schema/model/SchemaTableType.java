@@ -1,8 +1,7 @@
 package com.example.core.postgres.schema.model;
 
-public enum PostgresTableType {
+public enum SchemaTableType {
     TABLE,
     VIEW,
     MATERIALIZED_VIEW
 }
-

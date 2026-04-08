@@ -1,6 +1,6 @@
 package com.example.core.postgres.schema;
 
-import com.example.core.postgres.schema.model.PostgresSchemaSnapshot;
+import com.example.core.postgres.schema.model.GeneratedSchema;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -17,7 +17,7 @@ public class SchemaFingerprintService {
         this.schemaSerializationService = schemaSerializationService;
     }
 
-    public String fingerprint(PostgresSchemaSnapshot snapshot) {
+    public String fingerprint(GeneratedSchema snapshot) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashed = digest.digest(schemaSerializationService.serialize(snapshot).getBytes(StandardCharsets.UTF_8));

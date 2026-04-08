@@ -1,9 +1,9 @@
 package com.example.core.postgres.api.dto.response;
 
-import com.example.core.postgres.schema.model.PostgresTableSchema;
+import com.example.core.postgres.schema.model.SchemaTable;
 
 public record TableResponse(
-        PostgresTableSchema table
+        SchemaTable table
 ) {
 }
 

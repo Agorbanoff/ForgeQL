@@ -1,9 +1,9 @@
 package com.example.core.postgres.api.dto.response;
 
-import com.example.core.postgres.schema.model.PostgresSchemaSnapshot;
+import com.example.core.postgres.schema.model.GeneratedSchema;
 
 public record SchemaResponse(
-        PostgresSchemaSnapshot schema
+        GeneratedSchema schema
 ) {
 }
 

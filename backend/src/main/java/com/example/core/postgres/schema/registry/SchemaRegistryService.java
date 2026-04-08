@@ -1,6 +1,6 @@
 package com.example.core.postgres.schema.registry;
 
-import com.example.core.postgres.schema.model.PostgresSchemaSnapshot;
+import com.example.core.postgres.schema.model.GeneratedSchema;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -10,14 +10,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class SchemaRegistryService {
 
-    private final Map<Integer, PostgresSchemaSnapshot> snapshotsByDatasourceId = new ConcurrentHashMap<>();
+    private final Map<Integer, GeneratedSchema> snapshotsByDatasourceId = new ConcurrentHashMap<>();
 
-    public PostgresSchemaSnapshot register(PostgresSchemaSnapshot snapshot) {
+    public GeneratedSchema register(GeneratedSchema snapshot) {
         snapshotsByDatasourceId.put(snapshot.datasourceId(), snapshot);
         return snapshot;
     }
 
-    public Optional<PostgresSchemaSnapshot> findByDatasourceId(Integer datasourceId) {
+    public Optional<GeneratedSchema> findByDatasourceId(Integer datasourceId) {
         return Optional.ofNullable(snapshotsByDatasourceId.get(datasourceId));
     }
 

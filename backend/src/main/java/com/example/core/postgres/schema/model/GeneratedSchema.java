@@ -4,14 +4,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-public record PostgresSchemaSnapshot(
+public record GeneratedSchema(
         Integer datasourceId,
         String serverVersion,
         Instant generatedAt,
         String defaultSchema,
         String fingerprint,
-        Map<String, PostgresTableSchema> tables,
+        Map<String, SchemaTable> tables,
         Map<String, List<String>> relationGraph
 ) {
 }
-

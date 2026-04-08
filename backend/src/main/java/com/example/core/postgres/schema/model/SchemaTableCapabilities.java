@@ -1,6 +1,6 @@
 package com.example.core.postgres.schema.model;
 
-public record PostgresTableCapabilities(
+public record SchemaTableCapabilities(
         boolean read,
         boolean aggregate,
         boolean insert,
@@ -8,4 +8,3 @@ public record PostgresTableCapabilities(
         boolean delete
 ) {
 }
-

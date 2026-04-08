@@ -1,9 +1,10 @@
 package com.example.service;
 
 
-import com.example.common.CustomException;
 import com.example.common.exceptions.DataSourceAlreadyExistsException;
+import com.example.common.exceptions.MissingRequiredFieldException;
 import com.example.common.exceptions.NoDataSourceFoundException;
+import com.example.common.exceptions.UnsupportedDatabaseTypeException;
 import com.example.common.exceptions.UserNotFoundException;
 import com.example.controller.dtos.request.ReqDataSourceDTO;
 import com.example.controller.dtos.request.UpdateDataSourceDTO;
@@ -16,7 +17,6 @@ import com.example.persistence.model.UserAccountEntity;
 import com.example.persistence.repository.DataSourceRepository;
 import com.example.persistence.repository.UserAccountRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -89,13 +89,13 @@ public class DataSourceService {
 
     private void validatePostgreSqlOnly(DatabaseTypes dbType) {
         if (dbType != DatabaseTypes.POSTGRESQL) {
-            throw new CustomException("Only PostgreSQL datasources are supported", HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new UnsupportedDatabaseTypeException("Only PostgreSQL datasources are supported");
         }
     }
 
     private String normalizeRequiredValue(String value, String fieldName) {
         if (value == null || value.isBlank()) {
-            throw new CustomException(fieldName + " is required", HttpStatus.BAD_REQUEST);
+            throw new MissingRequiredFieldException(fieldName + " is required");
         }
 
         return value.trim();

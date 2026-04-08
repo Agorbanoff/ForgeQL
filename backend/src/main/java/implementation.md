@@ -648,23 +648,23 @@ Replace:
 ## 14. Recommended Package Structure
 
 ```text
-com.example.core.engine
-com.example.core.engine.api
-com.example.core.engine.api.controller
-com.example.core.engine.api.dto.request
-com.example.core.engine.api.dto.response
-com.example.core.engine.connection
-com.example.core.engine.introspection
-com.example.core.engine.schema
-com.example.core.engine.schema.model
-com.example.core.engine.schema.registry
-com.example.core.engine.schema.validation
-com.example.core.engine.ast
-com.example.core.engine.plan
-com.example.core.engine.sql
-com.example.core.engine.execution
-com.example.core.engine.aggregate
-com.example.core.engine.mutation
+com.example.core.postgres
+com.example.core.postgres.api
+com.example.core.postgres.api.controller
+com.example.core.postgres.api.dto.request
+com.example.core.postgres.api.dto.response
+com.example.core.postgres.connection
+com.example.core.postgres.introspection
+com.example.core.postgres.schema
+com.example.core.postgres.schema.model
+com.example.core.postgres.schema.registry
+com.example.core.postgres.schema.validation
+com.example.core.postgres.ast
+com.example.core.postgres.plan
+com.example.core.postgres.sql
+com.example.core.postgres.execution
+com.example.core.postgres.aggregate
+com.example.core.postgres.mutation
 ```
 
 ## 15. Implementation Order

@@ -1,5 +1,7 @@
 package com.example.core.postgres.schema;
 
+import com.example.common.exceptions.InvalidSchemaSnapshotException;
+import com.example.common.exceptions.SchemaSerializationException;
 import com.example.core.postgres.schema.model.GeneratedSchema;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,10 +17,14 @@ public class SchemaSerializationService {
     }
 
     public String serialize(GeneratedSchema snapshot) {
+        if (snapshot == null) {
+            throw new InvalidSchemaSnapshotException("Generated schema is required");
+        }
+
         try {
             return objectMapper.writeValueAsString(snapshot);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to serialize schema snapshot", e);
+            throw new SchemaSerializationException("Failed to serialize generated schema", e);
         }
     }
 }

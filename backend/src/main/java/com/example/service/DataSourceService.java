@@ -12,6 +12,7 @@ import com.example.controller.dtos.response.ResDataSourceConnectionTestDTO;
 import com.example.controller.dtos.response.ResDataSourceDTO;
 import com.example.core.postgres.connection.PostgresConnectionTestResult;
 import com.example.core.postgres.connection.PostgresConnectionTestService;
+import com.example.core.postgres.schema.registry.SchemaRegistryService;
 import com.example.persistence.Enums.DataSourceConnectionStatus;
 import com.example.persistence.Enums.DataSourceStatus;
 import com.example.persistence.Enums.DatabaseTypes;
@@ -51,16 +52,19 @@ public class DataSourceService {
     private final UserAccountRepository userAccountRepository;
     private final DataSourcePasswordCipher dataSourcePasswordCipher;
     private final PostgresConnectionTestService postgresConnectionTestService;
+    private final SchemaRegistryService schemaRegistryService;
 
     @Autowired
     public DataSourceService(DataSourceRepository dataSourceRepository,
                              UserAccountRepository userAccountRepository,
                              DataSourcePasswordCipher dataSourcePasswordCipher,
-                             PostgresConnectionTestService postgresConnectionTestService) {
+                             PostgresConnectionTestService postgresConnectionTestService,
+                             SchemaRegistryService schemaRegistryService) {
         this.dataSourceRepository = dataSourceRepository;
         this.userAccountRepository = userAccountRepository;
         this.dataSourcePasswordCipher = dataSourcePasswordCipher;
         this.postgresConnectionTestService = postgresConnectionTestService;
+        this.schemaRegistryService = schemaRegistryService;
     }
 
     private ResDataSourceDTO mapToDTO(DataSourceEntity dataSourceEntity) {
@@ -304,6 +308,7 @@ public class DataSourceService {
                 .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
 
         dataSourceRepository.delete(dataSourceEntity);
+        schemaRegistryService.evict(id);
     }
 
     public void updateDataSource(UpdateDataSourceDTO updateDataSourceDTO, Integer userId, Integer id) {
@@ -336,6 +341,9 @@ public class DataSourceService {
         }
 
         dataSourceRepository.save(dataSourceEntity);
+        if (connectionDefinitionChanged) {
+            schemaRegistryService.evict(id);
+        }
     }
 
     public ResDataSourceConnectionTestDTO testDataSourceConnection(Integer id, Integer userId) {

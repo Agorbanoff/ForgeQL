@@ -347,7 +347,7 @@ public class DataSourceService {
     }
 
     public ResDataSourceConnectionTestDTO testDataSourceConnection(Integer id, Integer userId) {
-        PostgresConnectionTestResult result = postgresConnectionTestService.test(id, userId);
+            PostgresConnectionTestResult result = postgresConnectionTestService.test(id, userId);
         DataSourceEntity dataSourceEntity = dataSourceRepository.findByIdAndUserAccount_Id(id, userId)
                 .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
 

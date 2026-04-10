@@ -5,12 +5,14 @@ import com.example.persistence.Enums.DatabaseTypes;
 import com.example.persistence.Enums.SslMode;
 import com.example.persistence.Enums.DataSourceStatus;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Instant;
 
 @Entity
-@Data
+@Getter
+@Setter
 @Table(
         name = "data_sources",
         uniqueConstraints = @UniqueConstraint(

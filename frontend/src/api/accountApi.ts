@@ -74,3 +74,13 @@ export async function logInUser(payload: LogInPayload): Promise<void> {
     throw await buildApiRequestError(response, 'Log in failed')
   }
 }
+
+export async function logOutUser(): Promise<void> {
+  const response = await apiFetch('/account/logout', {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    throw await buildApiRequestError(response, 'Log out failed')
+  }
+}

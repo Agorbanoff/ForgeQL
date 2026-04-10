@@ -1,7 +1,8 @@
 package com.example.persistence.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Instant;
 
@@ -10,7 +11,8 @@ import java.time.Instant;
         @Index(name = "idx_refresh_tokens_user_id", columnList = "user_id"),
         @Index(name = "idx_refresh_tokens_jti", columnList = "jti", unique = true)
 })
-@Data
+@Getter
+@Setter
 public class JwtEntity {
 
     @Id

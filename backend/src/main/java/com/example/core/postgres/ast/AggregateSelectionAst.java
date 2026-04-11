@@ -7,5 +7,8 @@ public record AggregateSelectionAst(
         AggregateFunction function,
         String field
 ) {
+    public AggregateSelectionAst {
+        alias = alias == null ? null : alias.trim();
+        field = field == null || field.isBlank() ? null : field.trim();
+    }
 }
-

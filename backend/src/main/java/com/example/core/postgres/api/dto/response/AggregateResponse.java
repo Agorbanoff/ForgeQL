@@ -1,9 +1,12 @@
 package com.example.core.postgres.api.dto.response;
 
-import java.util.Map;
+import java.util.List;
 
 public record AggregateResponse(
-        Map<String, Object> values
+        List<AggregateRowResponse> rows
 ) {
+    public AggregateResponse {
+        rows = rows == null ? List.of() : List.copyOf(rows);
+    }
 }
 

@@ -12,5 +12,10 @@ public record AggregateExecutionPlan(
         List<String> groupBy,
         List<FilterAst> filters
 ) implements ExecutionPlan {
+    public AggregateExecutionPlan {
+        selections = selections == null ? List.of() : List.copyOf(selections);
+        groupBy = groupBy == null ? List.of() : List.copyOf(groupBy);
+        filters = filters == null ? List.of() : List.copyOf(filters);
+    }
 }
 

@@ -1,6 +1,8 @@
 package com.example.core.postgres.plan;
 
 import com.example.common.exceptions.InvalidExecutionPlanException;
+import com.example.core.postgres.aggregate.AggregateFunction;
+import com.example.core.postgres.ast.AggregateSelectionAst;
 import com.example.core.postgres.ast.FilterAst;
 import com.example.core.postgres.ast.PaginationAst;
 import com.example.core.postgres.ast.ProjectionAst;
@@ -32,6 +34,10 @@ public class ExecutionPlanValidator {
 
         if (executionPlan instanceof ReadExecutionPlan readExecutionPlan) {
             validateReadExecutionPlan(readExecutionPlan);
+            return;
+        }
+        if (executionPlan instanceof AggregateExecutionPlan aggregateExecutionPlan) {
+            validateAggregateExecutionPlan(aggregateExecutionPlan);
         }
     }
 
@@ -122,6 +128,68 @@ public class ExecutionPlanValidator {
         }
         if (pagination.limit() != null && pagination.limit() <= 0) {
             throw new InvalidExecutionPlanException("Read execution plan limit must be positive");
+        }
+    }
+
+    private void validateAggregateExecutionPlan(AggregateExecutionPlan executionPlan) {
+        if (executionPlan.selections() == null || executionPlan.selections().isEmpty()) {
+            throw new InvalidExecutionPlanException("Aggregate execution plan selections are required");
+        }
+        if (executionPlan.groupBy() == null) {
+            throw new InvalidExecutionPlanException("Aggregate execution plan groupBy is required");
+        }
+        if (executionPlan.filters() == null) {
+            throw new InvalidExecutionPlanException("Aggregate execution plan filters are required");
+        }
+
+        validateAggregateSelections(executionPlan.selections());
+        validateAggregateGroupBy(executionPlan.groupBy());
+        validateFilters(executionPlan.filters());
+    }
+
+    private void validateAggregateSelections(List<AggregateSelectionAst> selections) {
+        Set<String> seenAliases = new LinkedHashSet<>();
+        for (AggregateSelectionAst selection : selections) {
+            if (selection == null) {
+                throw new InvalidExecutionPlanException("Aggregate execution plan selection is required");
+            }
+            if (selection.alias() == null || selection.alias().isBlank()) {
+                throw new InvalidExecutionPlanException("Aggregate execution plan selection alias is required");
+            }
+            String normalizedAlias = selection.alias().trim();
+            if (!seenAliases.add(normalizedAlias)) {
+                throw new InvalidExecutionPlanException(
+                        "Aggregate execution plan contains duplicate selection alias " + normalizedAlias
+                );
+            }
+            if (selection.function() == null) {
+                throw new InvalidExecutionPlanException("Aggregate execution plan selection function is required");
+            }
+            if (selection.function() != AggregateFunction.COUNT
+                    && (selection.field() == null || selection.field().isBlank())) {
+                throw new InvalidExecutionPlanException(
+                        "Aggregate execution plan selection field is required for function "
+                                + selection.function().wireName()
+                );
+            }
+            if (selection.field() != null && selection.field().isBlank()) {
+                throw new InvalidExecutionPlanException("Aggregate execution plan selection field must not be blank");
+            }
+        }
+    }
+
+    private void validateAggregateGroupBy(List<String> groupBy) {
+        Set<String> seenFields = new LinkedHashSet<>();
+        for (String field : groupBy) {
+            if (field == null || field.isBlank()) {
+                throw new InvalidExecutionPlanException("Aggregate execution plan groupBy field is required");
+            }
+            String normalizedField = field.trim();
+            if (!seenFields.add(normalizedField)) {
+                throw new InvalidExecutionPlanException(
+                        "Aggregate execution plan contains duplicate groupBy field " + normalizedField
+                );
+            }
         }
     }
 

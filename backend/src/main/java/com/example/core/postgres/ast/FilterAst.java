@@ -1,9 +1,11 @@
 package com.example.core.postgres.ast;
 
+import java.util.List;
+
 public record FilterAst(
         String field,
-        String operator,
-        Object value
+        ReadFilterOperator operator,
+        List<Object> values
 ) {
 }
 

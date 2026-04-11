@@ -256,20 +256,7 @@ public class SchemaValidationService {
 
     private void validateRelationGraph(GeneratedSchema schema) {
         for (Map.Entry<String, List<String>> entry : schema.relationGraph().entrySet()) {
-            String tableQualifiedName = entry.getKey();
-            List<String> relatedTables = entry.getValue();
-
-            if (!schema.tables().containsKey(tableQualifiedName)) {
-                throw new InvalidSchemaSnapshotException("Generated schema relation graph contains an unknown table");
-            }
-            if (relatedTables == null) {
-                throw new InvalidSchemaSnapshotException("Generated schema relation graph targets are required");
-            }
-
-            Set<String> distinctTargets = new LinkedHashSet<>(relatedTables);
-            if (distinctTargets.size() != relatedTables.size()) {
-                throw new InvalidSchemaSnapshotException("Generated schema relation graph contains duplicate targets");
-            }
+            List<String> relatedTables = getStrings(schema, entry);
 
             for (String relatedTableQualifiedName : relatedTables) {
                 requireText(relatedTableQualifiedName, "Generated schema relation graph target is required");
@@ -284,6 +271,24 @@ public class SchemaValidationService {
                 throw new InvalidSchemaSnapshotException("Generated schema relation graph must include every table");
             }
         }
+    }
+
+    private static List<String> getStrings(GeneratedSchema schema, Map.Entry<String, List<String>> entry) {
+        String tableQualifiedName = entry.getKey();
+        List<String> relatedTables = entry.getValue();
+
+        if (!schema.tables().containsKey(tableQualifiedName)) {
+            throw new InvalidSchemaSnapshotException("Generated schema relation graph contains an unknown table");
+        }
+        if (relatedTables == null) {
+            throw new InvalidSchemaSnapshotException("Generated schema relation graph targets are required");
+        }
+
+        Set<String> distinctTargets = new LinkedHashSet<>(relatedTables);
+        if (distinctTargets.size() != relatedTables.size()) {
+            throw new InvalidSchemaSnapshotException("Generated schema relation graph contains duplicate targets");
+        }
+        return relatedTables;
     }
 
     private Set<String> collectColumnNames(List<SchemaColumn> columns) {

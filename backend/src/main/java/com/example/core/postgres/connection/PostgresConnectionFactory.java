@@ -3,7 +3,6 @@ package com.example.core.postgres.connection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 
 import org.springframework.stereotype.Component;
@@ -13,13 +12,16 @@ public class PostgresConnectionFactory {
 
     private final PostgresConnectionPropertiesFactory connectionPropertiesFactory;
     private final PostgresConnectionValidator connectionValidator;
+    private final PostgresRuntimePoolManager runtimePoolManager;
 
     public PostgresConnectionFactory(
             PostgresConnectionPropertiesFactory connectionPropertiesFactory,
-            PostgresConnectionValidator connectionValidator
+            PostgresConnectionValidator connectionValidator,
+            PostgresRuntimePoolManager runtimePoolManager
     ) {
         this.connectionPropertiesFactory = connectionPropertiesFactory;
         this.connectionValidator = connectionValidator;
+        this.runtimePoolManager = runtimePoolManager;
     }
 
     public String buildJdbcUrl(PostgresRuntimeConnectionDefinition definition) {
@@ -41,11 +43,7 @@ public class PostgresConnectionFactory {
 
     public Connection openConnection(PostgresRuntimeConnectionDefinition definition) throws SQLException {
         PostgresJdbcConnectionConfig config = createConfig(definition);
-        return openConnection(config);
-    }
-
-    public Connection openConnection(PostgresJdbcConnectionConfig config) throws SQLException {
-        return DriverManager.getConnection(config.jdbcUrl(), config.properties());
+        return runtimePoolManager.openConnection(definition, config);
     }
 
     private String formatHost(String host) {

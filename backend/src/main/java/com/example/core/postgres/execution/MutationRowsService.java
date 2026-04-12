@@ -1,5 +1,6 @@
 package com.example.core.postgres.execution;
 
+import com.example.common.exceptions.RowNotFoundException;
 import com.example.core.postgres.api.dto.request.CreateRowRequest;
 import com.example.core.postgres.api.dto.request.UpdateRowRequest;
 import com.example.core.postgres.api.dto.response.CreateRowResponse;
@@ -109,6 +110,9 @@ public class MutationRowsService {
         SqlCommand sqlCommand = updateSqlBuilder.build(executionPlan);
         PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(datasourceId, userId);
         MutationResult mutationResult = mutationExecutor.execute(connectionDefinition, executionPlan, sqlCommand);
+        if (mutationResult.affectedRows() == 0) {
+            throw new RowNotFoundException("Row not found for the requested primary key");
+        }
 
         return new UpdateRowResponse(
                 mutationResult.affectedRows(),
@@ -135,6 +139,9 @@ public class MutationRowsService {
         SqlCommand sqlCommand = deleteSqlBuilder.build(executionPlan);
         PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(datasourceId, userId);
         MutationResult mutationResult = mutationExecutor.execute(connectionDefinition, executionPlan, sqlCommand);
+        if (mutationResult.affectedRows() == 0) {
+            throw new RowNotFoundException("Row not found for the requested primary key");
+        }
 
         return new DeleteRowResponse(
                 mutationResult.affectedRows(),

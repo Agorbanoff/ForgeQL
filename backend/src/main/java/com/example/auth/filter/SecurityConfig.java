@@ -1,5 +1,6 @@
 package com.example.auth.filter;
 
+import com.example.common.ApplicationErrorCode;
 import com.example.controller.dtos.response.ApiErrorResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -79,7 +80,11 @@ public class SecurityConfig {
                 Instant.now(),
                 status.value(),
                 status.getReasonPhrase(),
+                status == HttpStatus.UNAUTHORIZED
+                        ? ApplicationErrorCode.AUTHENTICATION_REQUIRED.name()
+                        : ApplicationErrorCode.ACCESS_DENIED.name(),
                 message,
+                null,
                 request.getRequestURI()
         );
 

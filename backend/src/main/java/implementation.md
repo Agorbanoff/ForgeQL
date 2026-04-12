@@ -600,50 +600,32 @@ Important modeling rule:
 - request DTO should send plain `password`
 - service layer should encrypt before persistence
 
-## 13. Current Backend Scan And What Must Change
+## 13. Historical Baseline Scan And Migration Outcome
 
-### Good Starting Points
+This section described the backend before the PostgreSQL core-engine migration.
+It is historical context, not a description of the current runtime.
 
-- auth and datasource ownership already exist
-- datasource CRUD already exists
-- there is already query validation and SQL-building direction
+### What Was Reused
 
-### Important Current Gaps
+- auth and datasource ownership
+- datasource CRUD
+- shared validation and exception handling infrastructure
 
-- runtime query execution still uses one global `query.datasource` in [DataSourceConfig.java](/C:/Users/ASUS/Desktop/ForgeQL/backend/src/main/java/com/example/DataSourceConfig.java#L45)
-  This must be replaced by per-user, per-datasource runtime connections.
+### What Was Removed Or Replaced
 
-- schema is still static in [SchemaRegistry.java](/C:/Users/ASUS/Desktop/ForgeQL/backend/src/main/java/com/example/registry/SchemaRegistry.java#L18)
-  The new core must generate schemas dynamically per datasource.
+- the old global `query.datasource` runtime path was removed
+- the old static `schema.json` and static `SchemaRegistry` runtime were removed
+- the old query/read/aggregate/mutation shortcut paths were removed
+- datasource password handling was refactored so the backend encrypts before persistence
+- runtime schema and execution now flow only through `com.example.core.postgres`
 
-- current datasource request DTO uses `encryptedPassword` in [ReqDataSourceDTO.java](/C:/Users/ASUS/Desktop/ForgeQL/backend/src/main/java/com/example/controller/dtos/request/ReqDataSourceDTO.java#L15)
-  but the service stores it directly in [DataSourceService.java](/C:/Users/ASUS/Desktop/ForgeQL/backend/src/main/java/com/example/service/DataSourceService.java#L66)
-  This should be changed so the backend performs encryption itself.
+### Current Runtime Conclusion
 
-- current `DatabaseTypes` still includes non-competition directions and does not matter yet, but the core build should implement PostgreSQL first and completely: [DatabaseTypes.java](/C:/Users/ASUS/Desktop/ForgeQL/backend/src/main/java/com/example/persistence/Enums/DatabaseTypes.java#L3)
+Do not reintroduce the old static `schema.json` plus global `query.datasource` design.
 
-- current SSL model is not sufficient for serious PostgreSQL coverage
-  It should support the PostgreSQL JDBC SSL modes listed above.
+The authoritative runtime path is now:
 
-- current runtime query endpoints are static-schema oriented
-  They should be replaced by datasource-scoped core endpoints.
-
-### Practical Conclusion
-
-Do not extend the current static `schema.json` plus global `query.datasource` design.
-
-Keep:
-
-- auth
-- user ownership checks
-- general validation direction
-
-Replace:
-
-- static schema source
-- static query datasource
-- misleading password flow
-- controller shape for schema and query
+`datasourceId -> runtime connection resolution -> PostgreSQL pool/connection layer -> generated schema registry -> AST -> validated execution plan -> PostgreSQL SQL -> execution`
 
 ## 14. Recommended Package Structure
 
@@ -667,7 +649,9 @@ com.example.core.postgres.aggregate
 com.example.core.postgres.mutation
 ```
 
-## 15. Implementation Order
+## 15. Historical Implementation Order
+
+This roadmap is retained as historical sequencing for the migration that has now been implemented.
 
 1. Fix datasource model so it can represent a real PostgreSQL runtime connection.
 2. Change password handling so encryption happens in backend service logic.

@@ -1,10 +1,13 @@
 package com.example.core.postgres.connection;
 
 import com.example.common.CustomException;
+import com.example.common.PostgresJdbcErrorClassifier;
+import com.example.common.PostgresJdbcErrorClassifier.ErrorCategory;
 import com.example.common.exceptions.NoDataSourceFoundException;
 import com.example.common.exceptions.PostgresAuthenticationFailedException;
 import com.example.common.exceptions.PostgresConnectionFailedException;
 import com.example.common.exceptions.PostgresConnectionTimeoutException;
+import com.example.common.exceptions.PostgresSslFailureException;
 import com.example.persistence.Enums.DataSourceConnectionStatus;
 import com.example.persistence.Enums.DataSourceStatus;
 import com.example.persistence.model.DataSourceEntity;
@@ -12,16 +15,10 @@ import com.example.persistence.repository.DataSourceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.net.ssl.SSLException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
-import java.sql.SQLInvalidAuthorizationSpecException;
-import java.sql.SQLTimeoutException;
 import java.time.Instant;
-import java.util.Locale;
-import java.security.cert.CertPathValidatorException;
-import java.security.cert.CertificateException;
 
 @Service
 public class PostgresConnectionTestService {
@@ -30,17 +27,20 @@ public class PostgresConnectionTestService {
     private final PostgresConnectionFactory connectionFactory;
     private final PostgresConnectionValidator connectionValidator;
     private final DataSourceRepository dataSourceRepository;
+    private final PostgresJdbcErrorClassifier postgresJdbcErrorClassifier;
 
     public PostgresConnectionTestService(
             PostgresRuntimeConnectionResolver runtimeConnectionResolver,
             PostgresConnectionFactory connectionFactory,
             PostgresConnectionValidator connectionValidator,
-            DataSourceRepository dataSourceRepository
+            DataSourceRepository dataSourceRepository,
+            PostgresJdbcErrorClassifier postgresJdbcErrorClassifier
     ) {
         this.runtimeConnectionResolver = runtimeConnectionResolver;
         this.connectionFactory = connectionFactory;
         this.connectionValidator = connectionValidator;
         this.dataSourceRepository = dataSourceRepository;
+        this.postgresJdbcErrorClassifier = postgresJdbcErrorClassifier;
     }
 
     @Transactional
@@ -104,7 +104,7 @@ public class PostgresConnectionTestService {
     }
 
     private DataSourceConnectionStatus resolveConnectionStatus(SQLException exception) {
-        if (exception instanceof SQLTimeoutException || containsTimeoutCause(exception)) {
+        if (postgresJdbcErrorClassifier.classify(exception) == ErrorCategory.TIMEOUT) {
             return DataSourceConnectionStatus.TIMED_OUT;
         }
 
@@ -115,82 +115,30 @@ public class PostgresConnectionTestService {
             SQLException exception,
             DataSourceConnectionStatus connectionStatus
     ) {
+        ErrorCategory errorCategory = postgresJdbcErrorClassifier.classify(exception);
         if (connectionStatus == DataSourceConnectionStatus.TIMED_OUT) {
             return new PostgresConnectionTimeoutException("Connection to PostgreSQL timed out");
         }
-        if (isAuthenticationOrSslFailure(exception)) {
-            return new PostgresAuthenticationFailedException(
-                    "Authentication or SSL negotiation with PostgreSQL failed"
-            );
+        if (errorCategory == ErrorCategory.SSL_FAILURE) {
+            return new PostgresSslFailureException("SSL negotiation with PostgreSQL failed");
+        }
+        if (errorCategory == ErrorCategory.AUTHENTICATION_FAILURE) {
+            return new PostgresAuthenticationFailedException("Authentication with PostgreSQL failed");
         }
         return new PostgresConnectionFailedException("Connection to PostgreSQL failed");
     }
 
     private String resolveSafeMessage(SQLException exception, DataSourceConnectionStatus connectionStatus) {
+        ErrorCategory errorCategory = postgresJdbcErrorClassifier.classify(exception);
         if (connectionStatus == DataSourceConnectionStatus.TIMED_OUT) {
             return "Connection to PostgreSQL timed out";
         }
-        if (isAuthenticationOrSslFailure(exception)) {
-            return "Authentication or SSL negotiation with PostgreSQL failed";
+        if (errorCategory == ErrorCategory.SSL_FAILURE) {
+            return "SSL negotiation with PostgreSQL failed";
+        }
+        if (errorCategory == ErrorCategory.AUTHENTICATION_FAILURE) {
+            return "Authentication with PostgreSQL failed";
         }
         return "Connection to PostgreSQL failed";
     }
-
-    private boolean isAuthenticationOrSslFailure(SQLException exception) {
-        return isAuthenticationFailure(exception) || isSslFailure(exception);
-    }
-
-    private boolean isAuthenticationFailure(SQLException exception) {
-        if (exception instanceof SQLInvalidAuthorizationSpecException) {
-            return true;
-        }
-
-        return hasSqlState(exception, "28");
-    }
-
-    private boolean isSslFailure(SQLException exception) {
-        if (containsCause(exception, SSLException.class)
-                || containsCause(exception, CertificateException.class)
-                || containsCause(exception, CertPathValidatorException.class)) {
-            return true;
-        }
-
-        String message = exception.getMessage();
-        return message != null && message.toLowerCase(Locale.ROOT).contains("ssl");
-    }
-
-    private boolean hasSqlState(SQLException exception, String sqlStatePrefix) {
-        SQLException current = exception;
-        while (current != null) {
-            String sqlState = current.getSQLState();
-            if (sqlState != null && sqlState.startsWith(sqlStatePrefix)) {
-                return true;
-            }
-            current = current.getNextException();
-        }
-        return false;
-    }
-
-    private boolean containsTimeoutCause(Throwable throwable) {
-        Throwable current = throwable;
-        while (current != null) {
-            if (current instanceof java.net.SocketTimeoutException) {
-                return true;
-            }
-            current = current.getCause();
-        }
-        return false;
-    }
-
-    private boolean containsCause(Throwable throwable, Class<? extends Throwable> type) {
-        Throwable current = throwable;
-        while (current != null) {
-            if (type.isInstance(current)) {
-                return true;
-            }
-            current = current.getCause();
-        }
-        return false;
-    }
 }
-

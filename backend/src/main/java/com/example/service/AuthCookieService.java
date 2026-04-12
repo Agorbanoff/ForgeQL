@@ -11,7 +11,7 @@ public class AuthCookieService {
     private static final String ACCESS_COOKIE_NAME = "access_token";
 
     private static final long REFRESH_MAX_AGE = 60L * 60 * 24 * 30;
-    private static final long ACCESS_MAX_AGE = 60L * 15; // 15 минути
+    private static final long ACCESS_MAX_AGE = 60L * 15;
 
     public void addAccessTokenCookie(HttpServletResponse response, String accessToken) {
         ResponseCookie cookie = ResponseCookie.from(ACCESS_COOKIE_NAME, accessToken)

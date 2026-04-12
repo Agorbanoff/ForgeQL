@@ -1,6 +1,7 @@
 package com.example.core.postgres.plan;
 
 import com.example.common.exceptions.InvalidExecutionPlanException;
+import com.example.common.exceptions.UnsupportedMutationTargetException;
 import com.example.core.postgres.ast.UpdateMutationAst;
 import com.example.core.postgres.execution.ValueCoercionService;
 import com.example.core.postgres.schema.SchemaReadService;
@@ -8,6 +9,7 @@ import com.example.core.postgres.schema.model.GeneratedSchema;
 import com.example.core.postgres.schema.model.SchemaColumn;
 import com.example.core.postgres.schema.model.SchemaPrimaryKey;
 import com.example.core.postgres.schema.model.SchemaTable;
+import com.example.core.postgres.schema.model.SchemaTableType;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -74,13 +76,20 @@ public class UpdatePlanner {
         if (table == null) {
             throw new InvalidExecutionPlanException("Update target table does not exist in generated schema");
         }
+        if (table.tableType() != SchemaTableType.TABLE) {
+            throw new UnsupportedMutationTargetException(
+                    "Update mutations are supported only for TABLE objects in v1"
+            );
+        }
         if (!table.capabilities().update()) {
-            throw new InvalidExecutionPlanException("Update target table is not updateable in v1");
+            throw new UnsupportedMutationTargetException(
+                    "Update mutations require a TABLE with exactly one primary key column in v1"
+            );
         }
 
         SchemaPrimaryKey primaryKey = table.primaryKey();
         if (primaryKey == null || primaryKey.columns().size() != 1) {
-            throw new InvalidExecutionPlanException(
+            throw new UnsupportedMutationTargetException(
                     "Update mutations require exactly one primary key column in v1"
             );
         }

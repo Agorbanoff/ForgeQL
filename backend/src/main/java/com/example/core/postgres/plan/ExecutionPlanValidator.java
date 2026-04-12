@@ -36,6 +36,18 @@ public class ExecutionPlanValidator {
             validateReadExecutionPlan(readExecutionPlan);
             return;
         }
+        if (executionPlan instanceof InsertExecutionPlan insertExecutionPlan) {
+            validateInsertExecutionPlan(insertExecutionPlan);
+            return;
+        }
+        if (executionPlan instanceof UpdateExecutionPlan updateExecutionPlan) {
+            validateUpdateExecutionPlan(updateExecutionPlan);
+            return;
+        }
+        if (executionPlan instanceof DeleteExecutionPlan deleteExecutionPlan) {
+            validateDeleteExecutionPlan(deleteExecutionPlan);
+            return;
+        }
         if (executionPlan instanceof AggregateExecutionPlan aggregateExecutionPlan) {
             validateAggregateExecutionPlan(aggregateExecutionPlan);
         }
@@ -193,9 +205,78 @@ public class ExecutionPlanValidator {
         }
     }
 
+    private void validateInsertExecutionPlan(InsertExecutionPlan executionPlan) {
+        if (executionPlan.primaryKeyColumn() == null || executionPlan.primaryKeyColumn().isBlank()) {
+            throw new InvalidExecutionPlanException("Insert execution plan primary key column is required");
+        }
+        if (executionPlan.values() == null || executionPlan.values().isEmpty()) {
+            throw new InvalidExecutionPlanException("Insert execution plan values are required");
+        }
+        if (executionPlan.returningColumns() == null || executionPlan.returningColumns().isEmpty()) {
+            throw new InvalidExecutionPlanException("Insert execution plan returning columns are required");
+        }
+
+        validateInsertValues(executionPlan.values());
+        validateReturningColumns(executionPlan.returningColumns(), "Insert");
+    }
+
+    private void validateInsertValues(java.util.Map<String, Object> values) {
+        for (String field : values.keySet()) {
+            if (field == null || field.isBlank()) {
+                throw new InvalidExecutionPlanException("Insert execution plan column name is required");
+            }
+        }
+    }
+
+    private void validateReturningColumns(List<String> returningColumns, String planType) {
+        Set<String> seenColumns = new LinkedHashSet<>();
+        for (String column : returningColumns) {
+            if (column == null || column.isBlank()) {
+                throw new InvalidExecutionPlanException(planType + " execution plan returning column is required");
+            }
+            String normalizedColumn = column.trim();
+            if (!seenColumns.add(normalizedColumn)) {
+                throw new InvalidExecutionPlanException(
+                        planType + " execution plan contains duplicate returning column " + normalizedColumn
+                );
+            }
+        }
+    }
+
+    private void validateUpdateExecutionPlan(UpdateExecutionPlan executionPlan) {
+        if (executionPlan.primaryKeyColumn() == null || executionPlan.primaryKeyColumn().isBlank()) {
+            throw new InvalidExecutionPlanException("Update execution plan primary key column is required");
+        }
+        if (executionPlan.primaryKeyValue() == null) {
+            throw new InvalidExecutionPlanException("Update execution plan primary key value is required");
+        }
+        if (executionPlan.values() == null || executionPlan.values().isEmpty()) {
+            throw new InvalidExecutionPlanException("Update execution plan values are required");
+        }
+        if (executionPlan.returningColumns() == null || executionPlan.returningColumns().isEmpty()) {
+            throw new InvalidExecutionPlanException("Update execution plan returning columns are required");
+        }
+
+        validateInsertValues(executionPlan.values());
+        validateReturningColumns(executionPlan.returningColumns(), "Update");
+    }
+
+    private void validateDeleteExecutionPlan(DeleteExecutionPlan executionPlan) {
+        if (executionPlan.primaryKeyColumn() == null || executionPlan.primaryKeyColumn().isBlank()) {
+            throw new InvalidExecutionPlanException("Delete execution plan primary key column is required");
+        }
+        if (executionPlan.primaryKeyValue() == null) {
+            throw new InvalidExecutionPlanException("Delete execution plan primary key value is required");
+        }
+        if (executionPlan.returningColumns() == null || executionPlan.returningColumns().isEmpty()) {
+            throw new InvalidExecutionPlanException("Delete execution plan returning columns are required");
+        }
+
+        validateReturningColumns(executionPlan.returningColumns(), "Delete");
+    }
+
     private boolean isQualifiedTableIdentifier(String tableIdentifier) {
         String[] parts = tableIdentifier.split("\\.", -1);
         return parts.length == 2 && !parts[0].isBlank() && !parts[1].isBlank();
     }
 }
-

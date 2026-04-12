@@ -1,6 +1,6 @@
-.idea/
-.vscode/
-*.iml
-*.ipr
-*.iws
-implementation.md
+# Root workspace only
+/.idea/
+/.vscode/
+/*.iml
+/*.ipr
+/*.iws

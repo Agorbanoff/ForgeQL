@@ -34,5 +34,5 @@ src/main/resources/application-*.local.properties
 *.bak
 *.swp
 
-# Local technical blueprints
-src/main/java/com/example/core/implementation.md
+# Local technical notes
+src/main/java/implementation.md

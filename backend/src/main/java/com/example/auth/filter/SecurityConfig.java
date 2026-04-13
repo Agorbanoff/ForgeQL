@@ -13,6 +13,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.csrf.CsrfException;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -26,10 +28,16 @@ import java.time.Instant;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CsrfCookieFilter csrfCookieFilter;
     private final ObjectMapper objectMapper;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, ObjectMapper objectMapper) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            CsrfCookieFilter csrfCookieFilter,
+            ObjectMapper objectMapper
+    ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.csrfCookieFilter = csrfCookieFilter;
         this.objectMapper = objectMapper;
     }
 
@@ -67,7 +75,9 @@ public class SecurityConfig {
                                         request,
                                         response,
                                         HttpStatus.FORBIDDEN,
-                                        "Access is denied"
+                                        accessDeniedException instanceof CsrfException
+                                                ? "CSRF token is missing or invalid"
+                                                : "Access is denied"
                                 )
                         )
                 )
@@ -82,6 +92,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(csrfCookieFilter, CsrfFilter.class)
                 .build();
     }
 

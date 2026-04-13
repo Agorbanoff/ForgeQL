@@ -17,7 +17,7 @@ import {
   getStoredDatasourceDetails,
   storeSelectedDatasource,
 } from '../lib/appState'
-import { formatDateTime, getStatusLabel, getStatusTone } from '../lib/platform'
+import { getStatusLabel, getStatusTone } from '../lib/platform'
 import type {
   DatasourcePayload,
   DatasourceRecord,
@@ -513,11 +513,6 @@ export default function ConnectionRequestPage() {
     }
   }
 
-  async function handleLogOut() {
-    await logout()
-    navigate('/login', { replace: true })
-  }
-
   function openExplorer(datasource: DatasourceRecord) {
     storeSelectedDatasource(toStoredSelection(datasource))
     navigate(`/datasource/${datasource.id}/explorer`)
@@ -528,22 +523,6 @@ export default function ConnectionRequestPage() {
 
   return (
     <main ref={rootRef} className="page-shell py-6 sm:py-8">
-      <div className="workspace-toolbar">
-        <div className="flex flex-wrap items-center justify-end gap-3 pointer-events-auto">
-          <button
-            type="button"
-            className="workspace-menu-trigger"
-            onClick={handleLogOut}
-          >
-            <span>
-              <span className="workspace-menu-label">Session</span>
-              <span className="workspace-menu-value">Log out</span>
-            </span>
-            <span className="workspace-menu-caret" />
-          </button>
-        </div>
-      </div>
-
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_400px]">
         <section className="surface-panel surface-overflow-visible px-6 py-7 sm:px-8 sm:py-8 lg:px-10">
           <div className="relative z-10">
@@ -757,36 +736,14 @@ export default function ConnectionRequestPage() {
               {selectedDatasource ? (
                 <>
                   <div className="mt-5 grid gap-3">
-                    {[
-                      {
-                        label: 'Endpoint',
-                        value: `${selectedDatasource.host}:${selectedDatasource.port}`,
-                      },
-                      {
-                        label: 'Database',
-                        value: `${selectedDatasource.databaseName} / ${selectedDatasource.schemaName}`,
-                      },
-                      {
-                        label: 'Last test',
-                        value: formatDateTime(selectedDatasource.lastConnectionTestAt),
-                      },
-                      {
-                        label: 'Last schema sync',
-                        value: formatDateTime(selectedDatasource.lastSchemaGeneratedAt),
-                      },
-                    ].map((item) => (
-                      <div
-                        key={item.label}
-                        className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4"
-                      >
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                          {item.label}
-                        </p>
-                        <p className="mt-2 text-sm font-medium text-white">
-                          {item.value}
-                        </p>
-                      </div>
-                    ))}
+                    <div className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                        Datasource name
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-white">
+                        {selectedDatasource.displayName}
+                      </p>
+                    </div>
                   </div>
 
                   {selectedDatasource.lastConnectionError && (
@@ -889,10 +846,6 @@ export default function ConnectionRequestPage() {
                           <h3 className="text-base font-semibold text-white">
                             {datasource.displayName}
                           </h3>
-                          <p className="mt-1 text-sm text-zinc-400">
-                            {datasource.databaseName} on {datasource.host}:
-                            {datasource.port}
-                          </p>
                         </button>
                         <StatusPill status={datasource.lastConnectionStatus ?? null} />
                       </div>

@@ -238,6 +238,7 @@ describe('runtime explorer', () => {
     })
 
     await actor.click(screen.getByText('Gamma'))
+    await actor.click(screen.getByRole('button', { name: /edit the selected row/i }))
 
     const updateCard = await screen.findByText('Update selected row', { selector: 'p' })
     const updateScope = within(updateCard.parentElement?.parentElement as HTMLElement)
@@ -255,6 +256,7 @@ describe('runtime explorer', () => {
     })
 
     await actor.click(screen.getByText('Gamma Prime'))
+    await actor.click(screen.getByRole('button', { name: /remove the selected row/i }))
     await actor.click(screen.getByRole('button', { name: 'Delete selected row' }))
     await actor.click(await screen.findByRole('button', { name: 'Delete row' }))
 
@@ -262,5 +264,35 @@ describe('runtime explorer', () => {
     await waitFor(() => {
       expect(screen.queryByText('Gamma Prime')).not.toBeInTheDocument()
     })
+  })
+
+  it('opens the session dropdown and deletes the account after confirmation', async () => {
+    const fetchMock = installFetchMock()
+    registerRuntimeExplorer(fetchMock)
+
+    fetchMock.route(
+      'GET',
+      (request) =>
+        request.url.pathname === '/api/core/datasources/1/tables/public.orders/rows',
+      createJsonResponse(buildRowsResponse([{ id: 1, name: 'Alpha', amount: 10 }]))
+    )
+    fetchMock.route('DELETE', '/api/account/me', createJsonResponse({}))
+
+    renderAppAt('/datasource/1/explorer')
+
+    const actor = userEvent.setup()
+    expect(await screen.findByText('Alpha')).toBeInTheDocument()
+
+    await actor.click(screen.getByRole('button', { name: /alex/i }))
+    await actor.click(await screen.findByRole('menuitem', { name: 'Delete account' }))
+
+    expect(
+      await screen.findByText('Are you sure you want to delete your account?')
+    ).toBeInTheDocument()
+
+    await actor.click(screen.getByRole('button', { name: 'Delete account' }))
+
+    expect(await screen.findByText('Log in')).toBeInTheDocument()
+    expect(fetchMock.getCalls('DELETE', '/api/account/me')).toHaveLength(1)
   })
 })

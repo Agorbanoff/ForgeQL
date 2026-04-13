@@ -130,6 +130,7 @@ textarea {
   .surface-panel {
     position: relative;
     overflow: hidden;
+    isolation: isolate;
     transform-style: preserve-3d;
     border-radius: 28px;
     border: 1px solid var(--panel-border);
@@ -149,6 +150,7 @@ textarea {
     content: '';
     position: absolute;
     inset: 0;
+    border-radius: inherit;
     background:
       radial-gradient(circle at var(--spot-x) var(--spot-y), rgba(255, 255, 255, 0.08), transparent 26%),
       linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 32%, transparent 68%, rgba(82, 215, 255, 0.05)),
@@ -168,6 +170,7 @@ textarea {
 
   .surface-card {
     @apply relative overflow-hidden rounded-[24px] border transition;
+    isolation: isolate;
     transform-style: preserve-3d;
     border-color: rgba(255, 255, 255, 0.08);
     background: linear-gradient(180deg, rgba(16, 20, 28, 0.9), rgba(8, 11, 17, 0.86));
@@ -190,6 +193,7 @@ textarea {
     content: '';
     position: absolute;
     inset: 0;
+    border-radius: inherit;
     background:
       radial-gradient(circle at var(--spot-x) var(--spot-y), rgba(82, 215, 255, 0.12), transparent 32%),
       linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 38%);
@@ -270,7 +274,7 @@ textarea {
     top: 1rem;
     z-index: 80;
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     margin-bottom: 1rem;
     pointer-events: none;
   }
@@ -657,10 +661,17 @@ textarea {
   }
 
   .chip-toggle {
-    @apply rounded-full border px-3 py-2 text-xs font-medium transition;
+    @apply inline-flex items-center justify-center rounded-full border text-xs font-medium transition;
+    width: 7.75rem;
+    min-height: 3rem;
+    padding: 0.4rem 0.75rem;
     border-color: rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.03);
     color: rgba(236, 240, 248, 0.82);
+    white-space: normal;
+    word-break: break-word;
+    text-align: center;
+    line-height: 1.2;
   }
 
   .chip-toggle:hover {
@@ -673,6 +684,58 @@ textarea {
     background: linear-gradient(180deg, rgba(82, 215, 255, 0.16), rgba(82, 215, 255, 0.08));
     color: white;
     box-shadow: 0 12px 26px rgba(82, 215, 255, 0.18);
+  }
+
+  .mode-toggle {
+    min-width: 8.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.9rem 1rem;
+    text-align: left;
+    color: var(--text-main);
+    transition:
+      border-color 180ms ease,
+      background 180ms ease,
+      transform 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .mode-toggle:hover,
+  .mode-toggle:focus-visible {
+    outline: none;
+    border-color: rgba(82, 215, 255, 0.2);
+    background: rgba(82, 215, 255, 0.06);
+    transform: translateY(-1px);
+  }
+
+  .mode-toggle.is-active {
+    border-color: rgba(82, 215, 255, 0.3);
+    background:
+      linear-gradient(180deg, rgba(82, 215, 255, 0.12), rgba(82, 215, 255, 0.05)),
+      rgba(255, 255, 255, 0.03);
+    box-shadow: 0 16px 34px rgba(82, 215, 255, 0.12);
+  }
+
+  .mode-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .mode-toggle-label {
+    display: block;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  .mode-toggle-copy {
+    display: block;
+    margin-top: 0.28rem;
+    font-size: 0.74rem;
+    color: rgba(165, 173, 191, 0.84);
   }
 
   .data-table {

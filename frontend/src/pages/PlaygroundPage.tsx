@@ -1,6 +1,14 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
+import { deleteCurrentAccount } from '../api/accountApi'
 import { getDataSource } from '../api/dataSourceApi'
 import { ApiRequestError } from '../api/http'
 import {
@@ -54,6 +62,7 @@ import type {
 type FeedbackTone = 'success' | 'danger' | 'warning' | 'neutral'
 type Feedback = { tone: FeedbackTone; title: string; message: string }
 type ExplorerError = { title: string; message: string; detail?: string }
+type MutationMode = 'create' | 'update' | 'delete'
 type FilterDraft = {
   id: number
   field: string
@@ -364,8 +373,9 @@ function buildMutationValues(
 export default function PlaygroundPage() {
   const navigate = useNavigate()
   const { datasourceId: datasourceIdParam } = useParams()
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const rootRef = useElegantAnimations<HTMLDivElement>([])
+  const workspaceMenuRef = useRef<HTMLDivElement | null>(null)
   const datasourceId = Number(datasourceIdParam)
 
   const [datasource, setDatasource] = useState<DatasourceRecord | null>(null)
@@ -398,9 +408,13 @@ export default function PlaygroundPage() {
   const [aggregateLoading, setAggregateLoading] = useState(false)
   const [aggregateError, setAggregateError] = useState<string | null>(null)
   const [mutating, setMutating] = useState(false)
+  const [accountDeleting, setAccountDeleting] = useState(false)
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false)
+  const [pendingAccountDelete, setPendingAccountDelete] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Record<string, unknown> | null>(
     null
   )
+  const [mutationMode, setMutationMode] = useState<MutationMode>('create')
 
   const preferredSchema = useMemo(
     () => pickPreferredSchema(tables, datasource?.schemaName),
@@ -568,6 +582,29 @@ export default function PlaygroundPage() {
       hasSingleNumericPrimaryKey(currentTable)
   )
   const mutationSupported = canCreate || canEditRows || canDeleteRows
+  const mutationModeOptions = useMemo(
+    () => [
+      {
+        value: 'create' as const,
+        label: 'Create',
+        description: 'Insert a new row',
+        enabled: canCreate,
+      },
+      {
+        value: 'update' as const,
+        label: 'Update',
+        description: 'Edit the selected row',
+        enabled: canEditRows,
+      },
+      {
+        value: 'delete' as const,
+        label: 'Delete',
+        description: 'Remove the selected row',
+        enabled: canDeleteRows,
+      },
+    ],
+    [canCreate, canDeleteRows, canEditRows]
+  )
 
   const visibleTableColumns = currentTable
     ? getReadableColumns(currentTable).filter((column) =>
@@ -604,6 +641,7 @@ export default function PlaygroundPage() {
     setAggregateFilters([])
     setAggregateResult(null)
     setAggregateError(null)
+    setPendingDelete(null)
   }
 
   async function handleAuthFailure() {
@@ -715,6 +753,48 @@ export default function PlaygroundPage() {
       setUpdateDraft(buildDraftFromRow(currentTable, selectedRow))
     }
   }, [currentTable, selectedRow])
+
+  useEffect(() => {
+    if (!mutationSupported) {
+      return
+    }
+
+    if (!mutationModeOptions.some((option) => option.value === mutationMode && option.enabled)) {
+      const fallback = mutationModeOptions.find((option) => option.enabled)
+      if (fallback) {
+        setMutationMode(fallback.value)
+      }
+    }
+  }, [mutationMode, mutationModeOptions, mutationSupported])
+
+  useEffect(() => {
+    if (!workspaceMenuOpen) {
+      return
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node
+      if (workspaceMenuRef.current?.contains(target)) {
+        return
+      }
+
+      setWorkspaceMenuOpen(false)
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setWorkspaceMenuOpen(false)
+      }
+    }
+
+    window.addEventListener('pointerdown', handlePointerDown)
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [workspaceMenuOpen])
 
   async function runReadQuery(
     table = currentTable,
@@ -978,45 +1058,123 @@ export default function PlaygroundPage() {
   }
 
   async function handleLogOut() {
+    setWorkspaceMenuOpen(false)
     clearSavedDatasource()
     await logout()
     navigate('/login', { replace: true })
   }
 
+  async function handleDeleteAccount() {
+    try {
+      setAccountDeleting(true)
+      await deleteCurrentAccount()
+      setPendingAccountDelete(false)
+      setWorkspaceMenuOpen(false)
+      clearSavedDatasource()
+      await logout({ skipRequest: true })
+      navigate('/login', {
+        replace: true,
+        state: {
+          message: 'Your account was deleted successfully.',
+        },
+      })
+    } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthFailure()
+        return
+      }
+
+      setFeedback({
+        tone: 'danger',
+        title: 'Account deletion failed',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Could not delete the account right now.',
+      })
+    } finally {
+      setAccountDeleting(false)
+    }
+  }
+
   return (
     <main ref={rootRef} className="page-shell py-6 sm:py-8">
       <div className="workspace-toolbar">
-        <div className="flex flex-wrap items-center justify-end gap-3 pointer-events-auto">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => navigate('/datasource')}
-          >
-            Datasources
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => syncSchema(schemaSummary ? 'refresh' : 'generate')}
-            disabled={schemaSyncing}
-          >
-            {schemaSyncing
-              ? 'Syncing...'
-              : schemaSummary
-                ? 'Refresh schema'
-                : 'Generate schema'}
-          </button>
-          <button
-            type="button"
-            className="workspace-menu-trigger"
-            onClick={handleLogOut}
-          >
-            <span>
-              <span className="workspace-menu-label">Session</span>
-              <span className="workspace-menu-value">Log out</span>
-            </span>
-            <span className="workspace-menu-caret" />
-          </button>
+        <div className="flex w-full flex-wrap items-start justify-between gap-3 pointer-events-auto">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => navigate('/datasource')}
+            >
+              Datasources
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => syncSchema(schemaSummary ? 'refresh' : 'generate')}
+              disabled={schemaSyncing}
+            >
+              {schemaSyncing
+                ? 'Syncing...'
+                : schemaSummary
+                  ? 'Refresh schema'
+                  : 'Generate schema'}
+            </button>
+          </div>
+
+          <div ref={workspaceMenuRef} className="workspace-menu">
+            <button
+              type="button"
+              className="workspace-menu-trigger"
+              onClick={() => setWorkspaceMenuOpen((current) => !current)}
+              aria-expanded={workspaceMenuOpen}
+              aria-haspopup="menu"
+            >
+              <span>
+                <span className="workspace-menu-label">Session</span>
+                <span className="workspace-menu-value">
+                  {user?.username ?? user?.email ?? 'Account options'}
+                </span>
+              </span>
+              <span
+                className={`workspace-menu-caret ${workspaceMenuOpen ? 'is-open' : ''}`}
+              />
+            </button>
+
+            <div
+              className={`workspace-menu-panel ${workspaceMenuOpen ? 'is-open' : ''}`}
+              role="menu"
+              aria-label="Session actions"
+            >
+              <div className="workspace-menu-summary">
+                <p className="workspace-menu-summary-title">Signed in workspace</p>
+                <p className="workspace-menu-summary-copy">
+                  {user?.username ?? user?.email ?? 'Manage your current session and account.'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="workspace-menu-action"
+                role="menuitem"
+                onClick={() => void handleLogOut()}
+              >
+                Log out
+              </button>
+              <button
+                type="button"
+                className="workspace-menu-action workspace-menu-action-danger"
+                role="menuitem"
+                onClick={() => {
+                  setWorkspaceMenuOpen(false)
+                  setPendingAccountDelete(true)
+                }}
+              >
+                Delete account
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1324,7 +1482,7 @@ export default function PlaygroundPage() {
                   </div>
 
                   <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px_180px]">
-                    <div className="surface-card surface-overflow-visible p-4">
+                    <div className="surface-card p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                         Columns shown
                       </p>
@@ -1358,7 +1516,7 @@ export default function PlaygroundPage() {
                       </div>
                     </div>
 
-                    <div className="surface-card surface-overflow-visible p-4">
+                    <div className="surface-card p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                         Sort
                       </p>
@@ -1387,7 +1545,7 @@ export default function PlaygroundPage() {
                       </div>
                     </div>
 
-                    <div className="surface-card surface-overflow-visible p-4">
+                    <div className="surface-card p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                         Pagination
                       </p>
@@ -1434,7 +1592,7 @@ export default function PlaygroundPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 surface-card surface-overflow-visible p-4">
+                  <div className="mt-5 surface-card p-4">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                         Filters
@@ -1562,7 +1720,7 @@ export default function PlaygroundPage() {
                     Summarize the selected table using the same schema-aware runtime.
                   </p>
                   <div className="mt-5 space-y-3">
-                    <div className="surface-card surface-overflow-visible p-4">
+                    <div className="surface-card p-4">
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                           Aggregate filters
@@ -1617,7 +1775,7 @@ export default function PlaygroundPage() {
                     {aggregateSelections.map((selectionItem) => (
                       <div
                         key={selectionItem.id}
-                        className="surface-card surface-overflow-visible p-4"
+                        className="surface-card p-4"
                       >
                         <div className="grid gap-3">
                           <AnimatedSelect
@@ -1737,8 +1895,22 @@ export default function PlaygroundPage() {
                     <p className="mt-3 text-sm text-zinc-400">
                       Only the actions supported by this table are shown here.
                     </p>
-                    <div className="mt-5 space-y-4">
-                      {canCreate && editableMutationColumns.length > 0 && (
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      {mutationModeOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`mode-toggle ${mutationMode === option.value ? 'is-active' : ''}`}
+                          onClick={() => setMutationMode(option.value)}
+                          disabled={!option.enabled}
+                        >
+                          <span className="mode-toggle-label">{option.label}</span>
+                          <span className="mode-toggle-copy">{option.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-4">
+                      {mutationMode === 'create' && canCreate && editableMutationColumns.length > 0 && (
                         <div className="surface-card p-4">
                           <MutationFields
                             title="Create row"
@@ -1757,7 +1929,7 @@ export default function PlaygroundPage() {
                         </div>
                       )}
 
-                      {canEditRows && (
+                      {mutationMode === 'update' && canEditRows && (
                         <div className="surface-card p-4">
                           {!selectedRow ? (
                             <div className="rounded-[18px] border border-white/8 bg-white/[0.03] p-4 text-sm text-zinc-400">
@@ -1784,21 +1956,32 @@ export default function PlaygroundPage() {
                         </div>
                       )}
 
-                      {canDeleteRows && (
+                      {mutationMode === 'delete' && canDeleteRows && (
                         <div className="surface-card p-4">
                           {!selectedRow ? (
                             <div className="rounded-[18px] border border-white/8 bg-white/[0.03] p-4 text-sm text-zinc-400">
                               Select a row in the grid to delete it.
                             </div>
                           ) : (
-                            <button
-                              type="button"
-                              className="secondary-button w-full text-red-100"
-                              onClick={() => setPendingDelete(selectedRow)}
-                              disabled={mutating}
-                            >
-                              Delete selected row
-                            </button>
+                            <>
+                              <div className="rounded-[18px] border border-red-400/14 bg-red-400/[0.05] p-4">
+                                <p className="text-sm font-semibold text-red-50">
+                                  Delete selected row
+                                </p>
+                                <p className="mt-2 text-sm leading-6 text-red-100/82">
+                                  This removes the selected record from the live table.
+                                  You’ll get one final confirmation before anything is deleted.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                className="secondary-button mt-4 w-full text-red-100"
+                                onClick={() => setPendingDelete(selectedRow)}
+                                disabled={mutating}
+                              >
+                                Delete selected row
+                              </button>
+                            </>
                           )}
                         </div>
                       )}
@@ -1839,6 +2022,46 @@ export default function PlaygroundPage() {
                 disabled={mutating}
               >
                 {mutating ? 'Deleting...' : 'Delete row'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingAccountDelete && (
+        <div className="fixed inset-0 z-[125] flex items-center justify-center bg-slate-950/75 px-4 backdrop-blur-md">
+          <div className="surface-panel w-full max-w-lg px-6 py-7 sm:px-8">
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+              Account removal
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold text-white">
+              Are you sure you want to delete your account?
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-zinc-300">
+              This will permanently remove your profile, datasources, and active
+              sessions from ForgeQL. This action cannot be undone.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="small-chip">Datasources removed</span>
+              <span className="small-chip">Sessions revoked</span>
+              <span className="small-chip">Permanent action</span>
+            </div>
+            <div className="mt-7 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setPendingAccountDelete(false)}
+                disabled={accountDeleting}
+              >
+                Keep account
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => void handleDeleteAccount()}
+                disabled={accountDeleting}
+              >
+                {accountDeleting ? 'Deleting account...' : 'Delete account'}
               </button>
             </div>
           </div>

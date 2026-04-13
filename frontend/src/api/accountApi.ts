@@ -14,6 +14,7 @@ export type LogInPayload = {
 export type CurrentUser = {
   id: number
   email: string
+  username: string
 }
 
 export async function signUpUser(payload: SignUpPayload): Promise<void> {
@@ -62,6 +63,16 @@ export async function logOutUser(): Promise<void> {
 
   if (!response.ok) {
     throw await buildApiRequestError(response, 'Log out failed')
+  }
+}
+
+export async function deleteCurrentAccount(): Promise<void> {
+  const response = await apiFetch('/account/me', {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    throw await buildApiRequestError(response, 'Deleting account failed')
   }
 }
 

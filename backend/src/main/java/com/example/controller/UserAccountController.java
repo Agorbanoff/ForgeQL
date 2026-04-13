@@ -2,11 +2,13 @@ package com.example.controller;
 
 import com.example.auth.filter.AuthenticatedUser;
 import com.example.common.exceptions.EmailAlreadyInUseException;
+import com.example.common.exceptions.UserNotFoundException;
 import com.example.common.exceptions.WrongCredentialsException;
 import com.example.controller.dtos.request.UserLogInDTO;
 import com.example.controller.dtos.request.UserSignUpDTO;
 import com.example.controller.dtos.response.CurrentUserDTO;
 import com.example.controller.dtos.response.TokenResponseDTO;
+import com.example.persistence.model.UserAccountEntity;
 import com.example.service.AuthCookieService;
 import com.example.service.UserAccountService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,9 +36,10 @@ public class UserAccountController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<CurrentUserDTO> me(Authentication authentication) {
+    public ResponseEntity<CurrentUserDTO> me(Authentication authentication) throws UserNotFoundException {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
-        return ResponseEntity.ok(new CurrentUserDTO(user.userId(), user.email()));
+        UserAccountEntity userAccount = userAccountService.getUserById(user.userId());
+        return ResponseEntity.ok(new CurrentUserDTO(user.userId(), user.email(), userAccount.getUsername()));
     }
 
     @GetMapping("/csrf")
@@ -73,5 +76,17 @@ public class UserAccountController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .build();
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteCurrentAccount(
+            Authentication authentication,
+            HttpServletResponse httpServletResponse
+    ) throws UserNotFoundException {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        userAccountService.deleteAccount(user.userId());
+        authCookieService.clearCookies(httpServletResponse);
+
+        return ResponseEntity.noContent().build();
     }
 }

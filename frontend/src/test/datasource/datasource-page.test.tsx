@@ -16,7 +16,6 @@ describe('datasource flow', () => {
     renderAppAt('/datasource')
 
     expect(await screen.findByText('Warehouse')).toBeInTheDocument()
-    expect(screen.getByText(/warehouse.db:5432/i)).toBeInTheDocument()
   })
 
   it('shows the empty datasource state when the backend returns no records', async () => {

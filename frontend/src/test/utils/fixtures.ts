@@ -15,6 +15,7 @@ export function buildCurrentUser(overrides: Partial<CurrentUser> = {}): CurrentU
   return {
     id: 1,
     email: 'user@example.com',
+    username: 'alex',
     ...overrides,
   }
 }

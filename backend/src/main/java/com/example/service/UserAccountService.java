@@ -1,6 +1,7 @@
 package com.example.service;
 
 import com.example.common.exceptions.EmailAlreadyInUseException;
+import com.example.common.exceptions.UserNotFoundException;
 import com.example.common.exceptions.WrongCredentialsException;
 import com.example.controller.dtos.request.UserLogInDTO;
 import com.example.controller.dtos.request.UserSignUpDTO;
@@ -63,5 +64,20 @@ public class UserAccountService {
     @Transactional
     public void logOut(String refreshToken) {
         jwtService.revokeRefreshToken(refreshToken);
+    }
+
+    @Transactional(readOnly = true)
+    public UserAccountEntity getUserById(Integer userId) throws UserNotFoundException {
+        return userAccountRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User account not found"));
+    }
+
+    @Transactional
+    public void deleteAccount(Integer userId) throws UserNotFoundException {
+        UserAccountEntity user = getUserById(userId);
+
+        jwtService.revokeAllUserTokens(user);
+        jwtService.deleteAllUserTokens(user);
+        userAccountRepository.delete(user);
     }
 }

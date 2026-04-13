@@ -150,6 +150,11 @@ public class JwtService {
         });
     }
 
+    @Transactional
+    public void deleteAllUserTokens(UserAccountEntity user) {
+        jwtRepository.deleteAllByUserAccount(user);
+    }
+
     public Integer extractUserId(String token) {
         Claims claims = jwtValidation.parseAccessClaims(token);
         return Integer.valueOf(claims.getSubject());

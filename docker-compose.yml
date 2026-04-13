@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-forgeql}
+      POSTGRES_USER: ${POSTGRES_USER:-forgeql}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forgeql_password}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - forgeql
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend.Dockerfile
+    image: ${BACKEND_IMAGE:-forgeql-backend:local}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_DATASOURCE_URL: ${APP_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/forgeql}
+      APP_DATASOURCE_USERNAME: ${APP_DATASOURCE_USERNAME:-forgeql}
+      APP_DATASOURCE_PASSWORD: ${APP_DATASOURCE_PASSWORD:-forgeql_password}
+      APP_DATASOURCE_DRIVER: ${APP_DATASOURCE_DRIVER:-org.postgresql.Driver}
+      DATASOURCE_ENCRYPTION_SECRET: ${DATASOURCE_ENCRYPTION_SECRET:-change-this-encryption-secret}
+      JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      CORE_POSTGRES_POOL_MAX_ACTIVE_POOLS: ${CORE_POSTGRES_POOL_MAX_ACTIVE_POOLS:-16}
+      CORE_POSTGRES_POOL_MAX_SIZE: ${CORE_POSTGRES_POOL_MAX_SIZE:-3}
+      CORE_POSTGRES_POOL_MIN_IDLE: ${CORE_POSTGRES_POOL_MIN_IDLE:-0}
+      CORE_POSTGRES_POOL_IDLE_EVICTION_MS: ${CORE_POSTGRES_POOL_IDLE_EVICTION_MS:-300000}
+      CORE_POSTGRES_POOL_CLEANUP_INTERVAL_MS: ${CORE_POSTGRES_POOL_CLEANUP_INTERVAL_MS:-60000}
+      CORE_POSTGRES_POOL_BORROW_TIMEOUT_MS: ${CORE_POSTGRES_POOL_BORROW_TIMEOUT_MS:-10000}
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${SERVER_PORT:-8080}/account/csrf >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - forgeql
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend.Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    image: ${FRONTEND_IMAGE:-forgeql-frontend:local}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://backend:8080}
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - forgeql
+
+networks:
+  forgeql:
+    driver: bridge
+
+volumes:
+  postgres_data:

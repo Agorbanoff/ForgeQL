@@ -1,6 +1,24 @@
-# Root workspace only
-/.idea/
-/.vscode/
-/*.iml
-/*.ipr
-/*.iws
+# IDE metadata
+.idea/
+**/.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Environment files
+.env
+.env.*
+
+# Backend build output
+/backend/target/
+/backend/build/
+/backend/out/
+
+# Frontend build output
+/frontend/node_modules/
+/frontend/dist/
+
+# OS files
+.DS_Store
+Thumbs.db

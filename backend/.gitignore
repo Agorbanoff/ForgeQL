@@ -1,13 +1,8 @@
-HELP.md
-
 # Build output
 target/
 build/
 out/
 *.class
-
-# Maven
-.mvn/wrapper/maven-wrapper.jar
 
 # IDE files
 .idea/
@@ -25,7 +20,6 @@ Thumbs.db
 .env
 .env.*
 *.secret
-src/main/resources/env.properties
 src/main/resources/application-local.properties
 src/main/resources/application-*.local.properties
 
@@ -33,6 +27,3 @@ src/main/resources/application-*.local.properties
 *.tmp
 *.bak
 *.swp
-
-# Local technical notes
-src/main/java/implementation.md

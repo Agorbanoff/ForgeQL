@@ -27,9 +27,14 @@ import java.util.Map;
 public class MutationExecutor {
 
     private final PostgresConnectionFactory connectionFactory;
+    private final PreparedStatementParameterBinder parameterBinder;
 
-    public MutationExecutor(PostgresConnectionFactory connectionFactory) {
+    public MutationExecutor(
+            PostgresConnectionFactory connectionFactory,
+            PreparedStatementParameterBinder parameterBinder
+    ) {
         this.connectionFactory = connectionFactory;
+        this.parameterBinder = parameterBinder;
     }
 
     public MutationResult execute(
@@ -119,9 +124,9 @@ public class MutationExecutor {
             SqlCommand sqlCommand
     ) throws SQLException {
         try (PreparedStatement preparedStatement = connection.prepareStatement(sqlCommand.sql())) {
-            bindParameters(preparedStatement, sqlCommand.parameters());
-
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+            try (PreparedStatementParameterBinder.BoundSqlArrayResources ignored =
+                         parameterBinder.bind(connection, preparedStatement, sqlCommand.parameters());
+                 ResultSet resultSet = preparedStatement.executeQuery()) {
                 return mapMutationResult(resultSet, definition, mutationType, primaryKeyColumn);
             }
         }
@@ -167,12 +172,6 @@ public class MutationExecutor {
         }
         if (sqlCommand.sql() == null || sqlCommand.sql().isBlank()) {
             throw new InvalidExecutionPlanException("SQL command text is required");
-        }
-    }
-
-    private void bindParameters(PreparedStatement preparedStatement, List<Object> parameters) throws SQLException {
-        for (int index = 0; index < parameters.size(); index++) {
-            preparedStatement.setObject(index + 1, parameters.get(index));
         }
     }
 

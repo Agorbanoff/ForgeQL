@@ -172,7 +172,7 @@ class PostgresCoreEngineIntegrationTest {
         );
 
         DataSourceEntity datasource = findDatasource(fixture.datasourceId());
-        assertThat(result.success()).isTrue();
+        assertThat(result.successful()).isTrue();
         assertThat(result.datasourceId()).isEqualTo(fixture.datasourceId());
         assertThat(result.connectionStatus()).isEqualTo(DataSourceConnectionStatus.SUCCEEDED);
         assertThat(result.databaseProductName()).isEqualTo("PostgreSQL");
@@ -302,7 +302,7 @@ class PostgresCoreEngineIntegrationTest {
                 )
         );
 
-        assertThat(response.page().rowCount()).isEqualTo(expectedIds.size());
+        assertThat(response.page().returnedCount()).isEqualTo(expectedIds.size());
         assertThat(response.rows())
                 .extracting(row -> toLong(row.get("id")))
                 .containsExactlyElementsOf(expectedIds);
@@ -326,7 +326,7 @@ class PostgresCoreEngineIntegrationTest {
                 )
         );
 
-        assertThat(response.page().rowCount()).isEqualTo(2);
+        assertThat(response.page().returnedCount()).isEqualTo(2);
         assertThat(response.page().limit()).isEqualTo(2);
         assertThat(response.page().offset()).isEqualTo(1);
         assertThat(response.rows())

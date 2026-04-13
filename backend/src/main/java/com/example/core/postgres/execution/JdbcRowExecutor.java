@@ -22,9 +22,14 @@ import java.util.Map;
 public class JdbcRowExecutor {
 
     private final PostgresConnectionFactory connectionFactory;
+    private final PreparedStatementParameterBinder parameterBinder;
 
-    public JdbcRowExecutor(PostgresConnectionFactory connectionFactory) {
+    public JdbcRowExecutor(
+            PostgresConnectionFactory connectionFactory,
+            PreparedStatementParameterBinder parameterBinder
+    ) {
         this.connectionFactory = connectionFactory;
+        this.parameterBinder = parameterBinder;
     }
 
     public List<Map<String, Object>> execute(PostgresRuntimeConnectionDefinition definition, SqlCommand sqlCommand) {
@@ -32,9 +37,9 @@ public class JdbcRowExecutor {
 
         try (Connection connection = connectionFactory.openConnection(definition);
              PreparedStatement preparedStatement = connection.prepareStatement(sqlCommand.sql())) {
-            bindParameters(preparedStatement, sqlCommand.parameters());
-
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+            try (PreparedStatementParameterBinder.BoundSqlArrayResources ignored =
+                         parameterBinder.bind(connection, preparedStatement, sqlCommand.parameters());
+                 ResultSet resultSet = preparedStatement.executeQuery()) {
                 return readRows(resultSet);
             }
         } catch (SQLException e) {
@@ -54,12 +59,6 @@ public class JdbcRowExecutor {
         }
         if (sqlCommand.sql() == null || sqlCommand.sql().isBlank()) {
             throw new InvalidExecutionPlanException("SQL command text is required");
-        }
-    }
-
-    private void bindParameters(PreparedStatement preparedStatement, List<Object> parameters) throws SQLException {
-        for (int index = 0; index < parameters.size(); index++) {
-            preparedStatement.setObject(index + 1, parameters.get(index));
         }
     }
 

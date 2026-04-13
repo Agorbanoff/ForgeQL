@@ -1,9 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signUpUser } from '../api/accountApi'
-import { ApiRequestError } from '../api/http'
 import AuthLayout from '../components/AuthLayout'
-import { clearSavedDatasource, clearSessionActive } from '../lib/appState'
+import { clearSavedDatasource } from '../lib/appState'
 
 export default function SignUpPage() {
   const navigate = useNavigate()
@@ -14,13 +13,11 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     setError(null)
-    setSuccess(null)
 
     if (!username.trim()) {
       setError('Username is required.')
@@ -59,39 +56,16 @@ export default function SignUpPage() {
         password,
       })
 
-      clearSessionActive()
       clearSavedDatasource()
-      setSuccess('Account created. Redirecting to login with your credentials filled in...')
-
-      setTimeout(() => {
-        navigate('/login', {
-          replace: true,
-          state: {
-            email: trimmedEmail,
-            password,
-            fromSignup: true,
-          },
-        })
-      }, 500)
-    } catch (err) {
-      console.error('[signup-page] submit failed', {
-        username: trimmedUsername,
-        email: trimmedEmail,
-        passwordLength: password.length,
-        confirmPasswordLength: confirmPassword.length,
-        error:
-          err instanceof ApiRequestError
-            ? {
-                name: err.name,
-                message: err.message,
-                status: err.status,
-                path: err.path,
-                timestamp: err.timestamp,
-                errorLabel: err.errorLabel,
-              }
-            : err,
+      navigate('/login', {
+        replace: true,
+        state: {
+          email: trimmedEmail,
+          password,
+          fromSignup: true,
+        },
       })
-
+    } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed.')
     } finally {
       setLoading(false)
@@ -164,12 +138,6 @@ export default function SignUpPage() {
           {error && (
             <div className="rounded-[20px] border border-red-500/20 bg-red-500/8 p-4 text-sm text-red-200">
               {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="rounded-[20px] border border-emerald-400/20 bg-emerald-400/8 p-4 text-sm text-emerald-200">
-              {success}
             </div>
           )}
 

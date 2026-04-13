@@ -8,6 +8,7 @@ import type {
   GeneratedSchema,
   ReadRowsRequest,
   RowsResponse,
+  SchemaTable,
   SchemaSummary,
   UpdateRowRequest,
   UpdateRowResponse,
@@ -15,6 +16,14 @@ import type {
 
 type SchemaEnvelope = {
   schema: GeneratedSchema
+}
+
+type TablesEnvelope = {
+  tables: SchemaTable[]
+}
+
+type TableEnvelope = {
+  table: SchemaTable
 }
 
 function encodeTableName(tableName: string) {
@@ -111,6 +120,46 @@ export async function getSchemaSummary(
   }
 
   return body as SchemaSummary
+}
+
+export async function listTables(datasourceId: number): Promise<SchemaTable[]> {
+  const response = await apiFetch(`/core/datasources/${datasourceId}/tables`, {
+    method: 'GET',
+  })
+
+  if (!response.ok) {
+    throw await buildApiRequestError(response, 'Loading tables failed')
+  }
+
+  const body = await parseResponseBody<TablesEnvelope>(response)
+  if (!body || typeof body !== 'object' || !Array.isArray(body.tables)) {
+    throw new Error('Loading tables failed')
+  }
+
+  return body.tables
+}
+
+export async function getTable(
+  datasourceId: number,
+  tableName: string
+): Promise<SchemaTable> {
+  const response = await apiFetch(
+    `/core/datasources/${datasourceId}/tables/${encodeTableName(tableName)}`,
+    {
+      method: 'GET',
+    }
+  )
+
+  if (!response.ok) {
+    throw await buildApiRequestError(response, 'Loading table failed')
+  }
+
+  const body = await parseResponseBody<TableEnvelope>(response)
+  if (!body || typeof body !== 'object' || !body.table) {
+    throw new Error('Loading table failed')
+  }
+
+  return body.table
 }
 
 export async function generateSchema(

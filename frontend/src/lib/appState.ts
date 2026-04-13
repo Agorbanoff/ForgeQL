@@ -15,7 +15,6 @@ export type StoredDatasourceSelection = {
 
 export type StoredDataSourceSummary = StoredDatasourceSelection
 
-const SESSION_KEY = 'sigmaql.session-active'
 const DATASOURCE_KEY = 'sigmaql.selected-datasource'
 
 function safeParseSelection(raw: string): StoredDatasourceSelection | null {
@@ -56,18 +55,6 @@ function safeParseSelection(raw: string): StoredDatasourceSelection | null {
   } catch {
     return null
   }
-}
-
-export function markSessionActive() {
-  localStorage.setItem(SESSION_KEY, 'true')
-}
-
-export function clearSessionActive() {
-  localStorage.removeItem(SESSION_KEY)
-}
-
-export function hasLocalSession() {
-  return localStorage.getItem(SESSION_KEY) === 'true'
 }
 
 export function storeSelectedDatasource(selection: StoredDatasourceSelection) {

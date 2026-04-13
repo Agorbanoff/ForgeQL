@@ -1,6 +1,6 @@
 import { startTransition, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { logOutUser } from '../api/accountApi'
+import { useAuth } from '../auth/AuthProvider'
 import {
   createDataSource,
   deleteDataSource,
@@ -12,9 +12,17 @@ import { ApiRequestError } from '../api/http'
 import { generateSchema, refreshSchema } from '../api/runtimeApi'
 import { AnimatedSelect } from '../components/AnimatedSelect'
 import { useElegantAnimations } from '../hooks/useElegantAnimations'
-import { clearSavedDatasource, clearSessionActive, getStoredDatasourceDetails, storeSelectedDatasource } from '../lib/appState'
+import {
+  clearSavedDatasource,
+  getStoredDatasourceDetails,
+  storeSelectedDatasource,
+} from '../lib/appState'
 import { formatDateTime, getStatusLabel, getStatusTone } from '../lib/platform'
-import type { DatasourcePayload, DatasourceRecord, SslMode } from '../types/platform'
+import type {
+  DatasourcePayload,
+  DatasourceRecord,
+  SslMode,
+} from '../types/platform'
 
 const SSL_OPTIONS = [
   { value: 'DISABLE', label: 'Disable' },
@@ -28,7 +36,7 @@ const DATABASE_OPTIONS = [
   {
     value: 'POSTGRESQL',
     label: 'PostgreSQL',
-    description: 'The current runtime engine supports PostgreSQL datasources.',
+    description: 'The runtime engine is currently wired to PostgreSQL datasources.',
   },
 ] as const
 
@@ -44,7 +52,6 @@ type FormState = {
   connectTimeoutMs: string
   socketTimeoutMs: string
   applicationName: string
-  extraJdbcOptionsJson: string
 }
 
 type FeedbackTone = 'success' | 'danger' | 'warning' | 'neutral'
@@ -62,7 +69,6 @@ const EMPTY_FORM: FormState = {
   connectTimeoutMs: '',
   socketTimeoutMs: '',
   applicationName: '',
-  extraJdbcOptionsJson: '',
 }
 
 function toForm(datasource: DatasourceRecord): FormState {
@@ -75,36 +81,44 @@ function toForm(datasource: DatasourceRecord): FormState {
     username: datasource.username,
     password: '',
     sslMode: datasource.sslMode,
-    connectTimeoutMs: datasource.connectTimeoutMs == null ? '' : String(datasource.connectTimeoutMs),
-    socketTimeoutMs: datasource.socketTimeoutMs == null ? '' : String(datasource.socketTimeoutMs),
+    connectTimeoutMs:
+      datasource.connectTimeoutMs == null ? '' : String(datasource.connectTimeoutMs),
+    socketTimeoutMs:
+      datasource.socketTimeoutMs == null ? '' : String(datasource.socketTimeoutMs),
     applicationName: datasource.applicationName ?? '',
-    extraJdbcOptionsJson: datasource.extraJdbcOptionsJson ?? '',
   }
 }
 
 function toPayload(form: FormState, mode: 'create' | 'edit'): DatasourcePayload {
-  const trimmedJson = form.extraJdbcOptionsJson.trim()
   if (!form.displayName.trim()) throw new Error('Datasource name is required.')
   if (!form.host.trim()) throw new Error('Host is required.')
-  if (!form.port.trim() || Number.isNaN(Number(form.port))) throw new Error('Port must be numeric.')
-  if (Number(form.port) < 1 || Number(form.port) > 65535) throw new Error('Port must be between 1 and 65535.')
+  if (!form.port.trim() || Number.isNaN(Number(form.port))) {
+    throw new Error('Port must be numeric.')
+  }
+  if (Number(form.port) < 1 || Number(form.port) > 65535) {
+    throw new Error('Port must be between 1 and 65535.')
+  }
   if (!form.databaseName.trim()) throw new Error('Database name is required.')
   if (!form.schemaName.trim()) throw new Error('Schema name is required.')
   if (!form.username.trim()) throw new Error('Username is required.')
-  if (mode === 'create' && !form.password) throw new Error('Password is required for a new datasource.')
-  if (form.connectTimeoutMs.trim() && (!Number.isFinite(Number(form.connectTimeoutMs)) || Number(form.connectTimeoutMs) < 1)) {
+  if (mode === 'create' && !form.password) {
+    throw new Error('Password is required for a new datasource.')
+  }
+  if (
+    form.connectTimeoutMs.trim() &&
+    (!Number.isFinite(Number(form.connectTimeoutMs)) ||
+      Number(form.connectTimeoutMs) < 1)
+  ) {
     throw new Error('Connect timeout must be a positive number.')
   }
-  if (form.socketTimeoutMs.trim() && (!Number.isFinite(Number(form.socketTimeoutMs)) || Number(form.socketTimeoutMs) < 1)) {
+  if (
+    form.socketTimeoutMs.trim() &&
+    (!Number.isFinite(Number(form.socketTimeoutMs)) ||
+      Number(form.socketTimeoutMs) < 1)
+  ) {
     throw new Error('Socket timeout must be a positive number.')
   }
-  if (trimmedJson) {
-    try {
-      JSON.parse(trimmedJson)
-    } catch {
-      throw new Error('Extra connection options must be valid JSON.')
-    }
-  }
+
   return {
     displayName: form.displayName.trim(),
     dbType: 'POSTGRESQL',
@@ -115,11 +129,15 @@ function toPayload(form: FormState, mode: 'create' | 'edit'): DatasourcePayload 
     username: form.username.trim(),
     password: form.password,
     sslMode: form.sslMode,
-    connectTimeoutMs: form.connectTimeoutMs.trim() ? Number(form.connectTimeoutMs) : null,
-    socketTimeoutMs: form.socketTimeoutMs.trim() ? Number(form.socketTimeoutMs) : null,
+    connectTimeoutMs: form.connectTimeoutMs.trim()
+      ? Number(form.connectTimeoutMs)
+      : null,
+    socketTimeoutMs: form.socketTimeoutMs.trim()
+      ? Number(form.socketTimeoutMs)
+      : null,
     applicationName: form.applicationName.trim() || null,
     sslRootCertRef: null,
-    extraJdbcOptionsJson: trimmedJson || null,
+    extraJdbcOptionsJson: null,
   }
 }
 
@@ -136,16 +154,90 @@ function feedbackClass(tone: FeedbackTone) {
   }
 }
 
-function StatusPill({ status }: { status: DatasourceRecord['lastConnectionStatus'] | null }) {
-  return <span className={`status-pill status-pill-${getStatusTone(status)}`}>{getStatusLabel(status)}</span>
+function isAuthError(error: unknown) {
+  return error instanceof ApiRequestError && error.status === 401
+}
+
+function describeDatasourceSaveError(error: unknown) {
+  if (!(error instanceof ApiRequestError)) {
+    return error instanceof Error ? error.message : 'Saving datasource failed.'
+  }
+
+  if (error.status === 403 && error.code === 'ACCESS_DENIED') {
+    return 'The backend blocked this write request before datasource validation. This is usually a session or CSRF security issue, not a database credential problem. Refresh the page, log in again, and retry.'
+  }
+
+  const details = [`HTTP ${error.status ?? 'unknown'}`]
+
+  if (error.code) {
+    details.push(error.code)
+  }
+
+  const suffix = error.targetPath ? ` Target: ${error.targetPath}.` : ''
+  return `${error.message} (${details.join(' / ')}).${suffix}`
+}
+
+function toStoredSelection(datasource: DatasourceRecord) {
+  return {
+    id: datasource.id,
+    displayName: datasource.displayName,
+    dbType: datasource.dbType,
+    host: datasource.host,
+    port: datasource.port,
+    databaseName: datasource.databaseName,
+    schemaName: datasource.schemaName,
+    username: datasource.username,
+    lastSchemaGeneratedAt: datasource.lastSchemaGeneratedAt,
+    lastSchemaFingerprint: datasource.lastSchemaFingerprint,
+  }
+}
+
+function sortByNewest(items: DatasourceRecord[]) {
+  return [...items].sort((left, right) => {
+    const rightTime = new Date(right.updatedAt).getTime()
+    const leftTime = new Date(left.updatedAt).getTime()
+    return rightTime - leftTime
+  })
+}
+
+function findRecentlySavedDatasource(
+  datasources: DatasourceRecord[],
+  payload: DatasourcePayload
+) {
+  return (
+    sortByNewest(datasources).find(
+      (item) =>
+        item.displayName === payload.displayName &&
+        item.host === payload.host &&
+        item.port === payload.port &&
+        item.databaseName === payload.databaseName &&
+        item.schemaName === payload.schemaName &&
+        item.username === payload.username
+    ) ?? sortByNewest(datasources)[0] ?? null
+  )
+}
+
+function StatusPill({
+  status,
+}: {
+  status: DatasourceRecord['lastConnectionStatus'] | null
+}) {
+  return (
+    <span className={`status-pill status-pill-${getStatusTone(status)}`}>
+      {getStatusLabel(status)}
+    </span>
+  )
 }
 
 export default function ConnectionRequestPage() {
   const navigate = useNavigate()
+  const { logout } = useAuth()
   const rootRef = useElegantAnimations<HTMLDivElement>([])
   const storedSelection = getStoredDatasourceDetails()
   const [datasources, setDatasources] = useState<DatasourceRecord[]>([])
-  const [selectedId, setSelectedId] = useState<number | null>(storedSelection?.id ?? null)
+  const [selectedId, setSelectedId] = useState<number | null>(
+    storedSelection?.id ?? null
+  )
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [mode, setMode] = useState<'create' | 'edit'>('create')
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -164,27 +256,56 @@ export default function ConnectionRequestPage() {
   )
 
   useEffect(() => {
+    if (selectedDatasource) {
+      storeSelectedDatasource(toStoredSelection(selectedDatasource))
+      return
+    }
+
+    if (datasources.length === 0) {
+      clearSavedDatasource()
+    }
+  }, [datasources.length, selectedDatasource])
+
+  useEffect(() => {
     void reload()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  async function handleAuthFailure() {
+    await logout({ skipRequest: true })
+    navigate('/login', { replace: true })
+  }
 
   async function reload(preferredId?: number | null) {
     try {
       setLoading(true)
       const next = await listDataSources()
       setDatasources(next)
-      const candidateId = preferredId ?? selectedId ?? storedSelection?.id ?? next[0]?.id ?? null
+
+      const candidateId =
+        preferredId ?? selectedId ?? storedSelection?.id ?? next[0]?.id ?? null
       const candidate = next.find((item) => item.id === candidateId) ?? next[0] ?? null
+
       startTransition(() => setSelectedId(candidate?.id ?? null))
+
       if (!candidate) {
         clearSavedDatasource()
       }
+
+      return next
     } catch (error) {
+      if (isAuthError(error)) {
+        await handleAuthFailure()
+        return []
+      }
+
       setFeedback({
         tone: 'danger',
         title: 'Datasource catalog unavailable',
-        message: error instanceof Error ? error.message : 'Could not load datasources.',
+        message:
+          error instanceof Error ? error.message : 'Could not load datasources.',
       })
+      return []
     } finally {
       setLoading(false)
     }
@@ -202,6 +323,7 @@ export default function ConnectionRequestPage() {
   }
 
   function startEdit(datasource: DatasourceRecord) {
+    setSelectedId(datasource.id)
     setMode('edit')
     setEditingId(datasource.id)
     setForm(toForm(datasource))
@@ -212,55 +334,75 @@ export default function ConnectionRequestPage() {
     })
   }
 
+  async function bootstrapDatasourceWorkspace(datasource: DatasourceRecord) {
+    const connectionResult = await testDataSourceConnection(datasource.id)
+    const refreshedDatasources = await reload(datasource.id)
+    const refreshedDatasource =
+      refreshedDatasources.find((item) => item.id === datasource.id) ?? datasource
+
+    if (!connectionResult.successful) {
+      setFeedback({
+        tone: 'warning',
+        title: 'Datasource saved',
+        message: connectionResult.message,
+      })
+      return
+    }
+
+    await generateSchema(datasource.id)
+    await reload(datasource.id)
+    storeSelectedDatasource(toStoredSelection(refreshedDatasource))
+    navigate(`/datasource/${datasource.id}/explorer`)
+  }
+
   async function saveDatasource() {
     try {
       const payload = toPayload(form, mode)
       setSaving(true)
+
       if (mode === 'edit' && editingId != null) {
         await updateDataSource(editingId, payload)
       } else {
         await createDataSource(payload)
       }
-      await reload(editingId)
-      if (mode === 'create') setForm(EMPTY_FORM)
+
+      const nextDatasources = await reload(mode === 'edit' ? editingId : null)
+      const resolvedSelection =
+        mode === 'edit' && editingId != null
+          ? nextDatasources.find((item) => item.id === editingId) ?? null
+          : findRecentlySavedDatasource(nextDatasources, payload)
+
+      if (resolvedSelection) {
+        startTransition(() => setSelectedId(resolvedSelection.id))
+
+        if (mode === 'edit') {
+          setForm(toForm(resolvedSelection))
+        }
+      } else if (mode === 'create') {
+        setForm(EMPTY_FORM)
+      }
+
+      if (resolvedSelection && mode === 'create') {
+        await bootstrapDatasourceWorkspace(resolvedSelection)
+        return
+      }
+
       setFeedback({
         tone: 'success',
         title: mode === 'edit' ? 'Datasource updated' : 'Datasource created',
-        message: 'Run a connection test, then generate the schema snapshot to open the explorer.',
+        message:
+          'Run a connection test, then generate the schema snapshot to open the explorer.',
       })
     } catch (error) {
-      if (
-        error instanceof ApiRequestError &&
-        (error.status === 401 || error.status === 403)
-      ) {
-        const localSelectionId = editingId ?? Date.now()
-        storeSelectedDatasource({
-          id: localSelectionId,
-          displayName: form.displayName.trim() || 'Local preview datasource',
-          dbType: 'POSTGRESQL',
-          host: form.host.trim(),
-          port: Number(form.port),
-          databaseName: form.databaseName.trim(),
-          schemaName: form.schemaName.trim(),
-          username: form.username.trim(),
-          lastSchemaGeneratedAt: new Date().toISOString(),
-          lastSchemaFingerprint: 'local-preview',
-        })
-        setFeedback({
-          tone: 'warning',
-          title: 'Backend session unavailable',
-          message: 'The datasource could not be saved to the backend, so the app will open a local preview workspace instead.',
-        })
-        setTimeout(() => {
-          navigate('/playground', { replace: true })
-        }, 350)
+      if (isAuthError(error)) {
+        await handleAuthFailure()
         return
       }
 
       setFeedback({
         tone: 'danger',
         title: 'Datasource could not be saved',
-        message: error instanceof Error ? error.message : 'Saving datasource failed.',
+        message: describeDatasourceSaveError(error),
       })
     } finally {
       setSaving(false)
@@ -278,53 +420,54 @@ export default function ConnectionRequestPage() {
         message: result.message,
       })
     } catch (error) {
-      if (
-        error instanceof ApiRequestError &&
-        (error.status === 401 || error.status === 403)
-      ) {
-        clearSavedDatasource()
-        clearSessionActive()
-        navigate('/login', { replace: true })
+      if (isAuthError(error)) {
+        await handleAuthFailure()
         return
       }
 
       setFeedback({
         tone: 'danger',
         title: 'Connection test failed',
-        message: error instanceof Error ? error.message : 'Could not verify the datasource.',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Could not verify the datasource.',
       })
     } finally {
       setTestingId(null)
     }
   }
 
-  async function syncSchema(datasource: DatasourceRecord, mode: 'generate' | 'refresh') {
+  async function syncSchema(datasource: DatasourceRecord, action: 'generate' | 'refresh') {
     try {
-      mode === 'generate' ? setGeneratingId(datasource.id) : setRefreshingId(datasource.id)
-      const schema =
-        mode === 'generate'
-          ? await generateSchema(datasource.id)
-          : await refreshSchema(datasource.id)
+      if (action === 'generate') {
+        setGeneratingId(datasource.id)
+      } else {
+        setRefreshingId(datasource.id)
+      }
+
+      if (action === 'generate') {
+        await generateSchema(datasource.id)
+      } else {
+        await refreshSchema(datasource.id)
+      }
+
       await reload(datasource.id)
       setFeedback({
         tone: 'success',
-        title: mode === 'generate' ? 'Schema generated' : 'Schema refreshed',
-        message: `${Object.keys(schema.tables).length} schema surfaces are ready to explore.`,
+        title: action === 'generate' ? 'Schema generated' : 'Schema refreshed',
+        message: 'The explorer is ready to open.',
       })
     } catch (error) {
-      if (
-        error instanceof ApiRequestError &&
-        (error.status === 401 || error.status === 403)
-      ) {
-        clearSavedDatasource()
-        clearSessionActive()
-        navigate('/login', { replace: true })
+      if (isAuthError(error)) {
+        await handleAuthFailure()
         return
       }
 
       setFeedback({
         tone: 'danger',
-        title: mode === 'generate' ? 'Schema generation failed' : 'Schema refresh failed',
+        title:
+          action === 'generate' ? 'Schema generation failed' : 'Schema refresh failed',
         message: error instanceof Error ? error.message : 'Schema action failed.',
       })
     } finally {
@@ -334,11 +477,18 @@ export default function ConnectionRequestPage() {
   }
 
   async function removeDatasource() {
-    if (!pendingDelete) return
+    if (!pendingDelete) {
+      return
+    }
+
     try {
       setDeletingId(pendingDelete.id)
       await deleteDataSource(pendingDelete.id)
-      if (selectedId === pendingDelete.id) clearSavedDatasource()
+
+      if (selectedId === pendingDelete.id) {
+        clearSavedDatasource()
+      }
+
       await reload(selectedId === pendingDelete.id ? null : selectedId)
       setFeedback({
         tone: 'success',
@@ -346,20 +496,16 @@ export default function ConnectionRequestPage() {
         message: `${pendingDelete.displayName} was removed from the workspace.`,
       })
     } catch (error) {
-      if (
-        error instanceof ApiRequestError &&
-        (error.status === 401 || error.status === 403)
-      ) {
-        clearSavedDatasource()
-        clearSessionActive()
-        navigate('/login', { replace: true })
+      if (isAuthError(error)) {
+        await handleAuthFailure()
         return
       }
 
       setFeedback({
         tone: 'danger',
         title: 'Datasource could not be deleted',
-        message: error instanceof Error ? error.message : 'Delete request failed.',
+        message:
+          error instanceof Error ? error.message : 'Delete request failed.',
       })
     } finally {
       setDeletingId(null)
@@ -368,45 +514,26 @@ export default function ConnectionRequestPage() {
   }
 
   async function handleLogOut() {
-    try {
-      await logOutUser()
-    } catch {
-      // Keep the local cleanup path even if the backend session already expired.
-    } finally {
-      clearSavedDatasource()
-      clearSessionActive()
-      navigate('/login', { replace: true })
-    }
+    await logout()
+    navigate('/login', { replace: true })
   }
 
   function openExplorer(datasource: DatasourceRecord) {
-    storeSelectedDatasource({
-      id: datasource.id,
-      displayName: datasource.displayName,
-      dbType: datasource.dbType,
-      host: datasource.host,
-      port: datasource.port,
-      databaseName: datasource.databaseName,
-      schemaName: datasource.schemaName,
-      username: datasource.username,
-      lastSchemaGeneratedAt: datasource.lastSchemaGeneratedAt,
-      lastSchemaFingerprint: datasource.lastSchemaFingerprint,
-    })
-    navigate('/playground')
+    storeSelectedDatasource(toStoredSelection(datasource))
+    navigate(`/datasource/${datasource.id}/explorer`)
   }
 
   const schemaUnlocked = selectedDatasource?.lastConnectionStatus === 'SUCCEEDED'
   const explorerUnlocked = Boolean(selectedDatasource?.lastSchemaGeneratedAt)
 
   return (
-    <main ref={rootRef} className="page-shell py-6 sm:py-8" data-animate="scene">
+    <main ref={rootRef} className="page-shell py-6 sm:py-8">
       <div className="workspace-toolbar">
         <div className="flex flex-wrap items-center justify-end gap-3 pointer-events-auto">
           <button
             type="button"
             className="workspace-menu-trigger"
             onClick={handleLogOut}
-            data-pressable
           >
             <span>
               <span className="workspace-menu-label">Session</span>
@@ -418,21 +545,32 @@ export default function ConnectionRequestPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_400px]">
-        <section className="surface-panel surface-overflow-visible px-6 py-7 sm:px-8 sm:py-8 lg:px-10" data-animate="hero" data-reveal="right">
+        <section className="surface-panel surface-overflow-visible px-6 py-7 sm:px-8 sm:py-8 lg:px-10">
           <div className="relative z-10">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <span className="section-badge" data-animate="chip">Datasource management</span>
-                <h1 className="display-title mt-6 max-w-[11ch] text-[3rem] text-white sm:text-[3.9rem]">Connect, verify, and unlock schema.</h1>
-                <p className="display-copy mt-4 max-w-2xl text-sm sm:text-base">Create the datasource, validate connectivity, and generate the runtime snapshot before opening the explorer.</p>
+                <span className="section-badge">Datasource management</span>
+                <h1 className="display-title mt-6 max-w-[11ch] text-[3rem] text-white sm:text-[3.9rem]">
+                  Connect, verify, and unlock schema.
+                </h1>
+                <p className="display-copy mt-4 max-w-2xl text-sm sm:text-base">
+                  Create the datasource, validate connectivity, and generate the
+                  runtime snapshot before opening the explorer.
+                </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {['Connection lifecycle', 'Schema generation', 'Explorer handoff'].map((item) => <span key={item} className="small-chip" data-animate="chip">{item}</span>)}
+                {['Connection lifecycle', 'Schema generation', 'Explorer handoff'].map(
+                  (item) => (
+                    <span key={item} className="small-chip">
+                      {item}
+                    </span>
+                  )
+                )}
               </div>
             </div>
 
             {feedback && (
-              <div className={`mt-6 rounded-[24px] border p-4 ${feedbackClass(feedback.tone)}`} data-reveal="up">
+              <div className={`mt-6 rounded-[24px] border p-4 ${feedbackClass(feedback.tone)}`}>
                 <p className="text-sm font-semibold">{feedback.title}</p>
                 <p className="mt-2 text-sm opacity-90">{feedback.message}</p>
               </div>
@@ -441,64 +579,157 @@ export default function ConnectionRequestPage() {
             <div className="mt-8 grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Datasource name</label>
-                <input value={form.displayName} onChange={(event) => updateField('displayName', event.target.value)} placeholder="Production analytics" className="input-shell" />
+                <input
+                  value={form.displayName}
+                  onChange={(event) => updateField('displayName', event.target.value)}
+                  placeholder="Production analytics"
+                  className="input-shell"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Database engine</label>
-                <AnimatedSelect value="POSTGRESQL" onChange={() => undefined} options={DATABASE_OPTIONS} ariaLabel="Database engine" disabled />
+                <AnimatedSelect
+                  value="POSTGRESQL"
+                  onChange={() => undefined}
+                  options={DATABASE_OPTIONS}
+                  ariaLabel="Database engine"
+                  disabled
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Host</label>
-                <input value={form.host} onChange={(event) => updateField('host', event.target.value)} placeholder="db.internal.example" className="input-shell" />
+                <input
+                  value={form.host}
+                  onChange={(event) => updateField('host', event.target.value)}
+                  placeholder="db.internal.example"
+                  className="input-shell"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Port</label>
-                <input value={form.port} onChange={(event) => updateField('port', event.target.value)} placeholder="5432" className="input-shell" />
+                <input
+                  value={form.port}
+                  onChange={(event) => updateField('port', event.target.value)}
+                  placeholder="5432"
+                  className="input-shell"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Database name</label>
-                <input value={form.databaseName} onChange={(event) => updateField('databaseName', event.target.value)} placeholder="warehouse" className="input-shell" />
+                <input
+                  value={form.databaseName}
+                  onChange={(event) =>
+                    updateField('databaseName', event.target.value)
+                  }
+                  placeholder="warehouse"
+                  className="input-shell"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Schema name</label>
-                <input value={form.schemaName} onChange={(event) => updateField('schemaName', event.target.value)} placeholder="public" className="input-shell" />
+                <input
+                  value={form.schemaName}
+                  onChange={(event) => updateField('schemaName', event.target.value)}
+                  placeholder="public"
+                  className="input-shell"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Username</label>
-                <input value={form.username} onChange={(event) => updateField('username', event.target.value)} placeholder="forgeql_app" className="input-shell" />
+                <input
+                  value={form.username}
+                  onChange={(event) => updateField('username', event.target.value)}
+                  placeholder="forgeql_app"
+                  className="input-shell"
+                />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">Password {mode === 'edit' ? '(leave blank to keep existing)' : ''}</label>
-                <input value={form.password} onChange={(event) => updateField('password', event.target.value)} type="password" placeholder={mode === 'edit' ? 'Leave blank to keep current secret' : 'Enter password'} className="input-shell" />
+                <label className="text-sm font-medium text-zinc-300">
+                  Password {mode === 'edit' ? '(leave blank to keep existing)' : ''}
+                </label>
+                <input
+                  value={form.password}
+                  onChange={(event) => updateField('password', event.target.value)}
+                  type="password"
+                  placeholder={
+                    mode === 'edit'
+                      ? 'Leave blank to keep current secret'
+                      : 'Enter password'
+                  }
+                  className="input-shell"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">SSL mode</label>
-                <AnimatedSelect value={form.sslMode} onChange={(value) => updateField('sslMode', value as SslMode)} options={SSL_OPTIONS} ariaLabel="SSL mode" />
+                <AnimatedSelect
+                  value={form.sslMode}
+                  onChange={(value) => updateField('sslMode', value as SslMode)}
+                  options={SSL_OPTIONS}
+                  ariaLabel="SSL mode"
+                />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">Application name</label>
-                <input value={form.applicationName} onChange={(event) => updateField('applicationName', event.target.value)} placeholder="ForgeQL Console" className="input-shell" />
+                <label className="text-sm font-medium text-zinc-300">
+                  Application name
+                </label>
+                <input
+                  value={form.applicationName}
+                  onChange={(event) =>
+                    updateField('applicationName', event.target.value)
+                  }
+                  placeholder="ForgeQL Console"
+                  className="input-shell"
+                />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">Connect timeout (ms)</label>
-                <input value={form.connectTimeoutMs} onChange={(event) => updateField('connectTimeoutMs', event.target.value)} placeholder="5000" className="input-shell" />
+                <label className="text-sm font-medium text-zinc-300">
+                  Connect timeout (ms)
+                </label>
+                <input
+                  value={form.connectTimeoutMs}
+                  onChange={(event) =>
+                    updateField('connectTimeoutMs', event.target.value)
+                  }
+                  placeholder="5000"
+                  className="input-shell"
+                />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">Socket timeout (ms)</label>
-                <input value={form.socketTimeoutMs} onChange={(event) => updateField('socketTimeoutMs', event.target.value)} placeholder="30000" className="input-shell" />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium text-zinc-300">Extra connection options (JSON)</label>
-                <textarea value={form.extraJdbcOptionsJson} onChange={(event) => updateField('extraJdbcOptionsJson', event.target.value)} placeholder='{"reWriteBatchedInserts": true}' className="input-shell min-h-[124px] resize-y" />
+                <label className="text-sm font-medium text-zinc-300">
+                  Socket timeout (ms)
+                </label>
+                <input
+                  value={form.socketTimeoutMs}
+                  onChange={(event) =>
+                    updateField('socketTimeoutMs', event.target.value)
+                  }
+                  placeholder="30000"
+                  className="input-shell"
+                />
               </div>
             </div>
 
-            <div className="subtle-divider mt-6" data-animate="line" />
+            <div className="subtle-divider mt-6" />
             <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap gap-3">
-                <button type="button" className="secondary-button" onClick={resetCreateMode} data-pressable>New datasource</button>
-                <button type="button" className="primary-button" onClick={saveDatasource} disabled={saving} data-pressable>
-                  {saving ? 'Saving...' : mode === 'edit' ? 'Update datasource' : 'Create datasource'}
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={resetCreateMode}
+                >
+                  New datasource
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={saveDatasource}
+                  disabled={saving}
+                >
+                  {saving
+                    ? 'Saving...'
+                    : mode === 'edit'
+                      ? 'Update datasource'
+                      : 'Create datasource'}
                 </button>
               </div>
               <span className="rounded-full border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-zinc-300">
@@ -509,12 +740,16 @@ export default function ConnectionRequestPage() {
         </section>
 
         <aside className="grid gap-6">
-          <section className="surface-panel px-6 py-7" data-animate="panel" data-reveal="left">
+          <section className="surface-panel px-6 py-7">
             <div className="relative z-10">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Selected datasource</p>
-                  <h2 className="mt-3 text-2xl font-semibold text-white">{selectedDatasource?.displayName ?? 'No datasource selected'}</h2>
+                  <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                    Selected datasource
+                  </p>
+                  <h2 className="mt-3 text-2xl font-semibold text-white">
+                    {selectedDatasource?.displayName ?? 'No datasource selected'}
+                  </h2>
                 </div>
                 <StatusPill status={selectedDatasource?.lastConnectionStatus ?? null} />
               </div>
@@ -523,14 +758,33 @@ export default function ConnectionRequestPage() {
                 <>
                   <div className="mt-5 grid gap-3">
                     {[
-                      { label: 'Endpoint', value: `${selectedDatasource.host}:${selectedDatasource.port}` },
-                      { label: 'Database', value: `${selectedDatasource.databaseName} / ${selectedDatasource.schemaName}` },
-                      { label: 'Last test', value: formatDateTime(selectedDatasource.lastConnectionTestAt) },
-                      { label: 'Last schema sync', value: formatDateTime(selectedDatasource.lastSchemaGeneratedAt) },
+                      {
+                        label: 'Endpoint',
+                        value: `${selectedDatasource.host}:${selectedDatasource.port}`,
+                      },
+                      {
+                        label: 'Database',
+                        value: `${selectedDatasource.databaseName} / ${selectedDatasource.schemaName}`,
+                      },
+                      {
+                        label: 'Last test',
+                        value: formatDateTime(selectedDatasource.lastConnectionTestAt),
+                      },
+                      {
+                        label: 'Last schema sync',
+                        value: formatDateTime(selectedDatasource.lastSchemaGeneratedAt),
+                      },
                     ].map((item) => (
-                      <div key={item.label} className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{item.label}</p>
-                        <p className="mt-2 text-sm font-medium text-white">{item.value}</p>
+                      <div
+                        key={item.label}
+                        className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4"
+                      >
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                          {item.label}
+                        </p>
+                        <p className="mt-2 text-sm font-medium text-white">
+                          {item.value}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -542,16 +796,46 @@ export default function ConnectionRequestPage() {
                   )}
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <button type="button" className="secondary-button" onClick={() => verifyDatasource(selectedDatasource)} disabled={testingId === selectedDatasource.id} data-pressable>
-                      {testingId === selectedDatasource.id ? 'Testing...' : 'Test connection'}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => verifyDatasource(selectedDatasource)}
+                      disabled={testingId === selectedDatasource.id}
+                    >
+                      {testingId === selectedDatasource.id
+                        ? 'Testing...'
+                        : 'Test connection'}
                     </button>
-                    <button type="button" className="secondary-button" onClick={() => syncSchema(selectedDatasource, 'generate')} disabled={!schemaUnlocked || generatingId === selectedDatasource.id} data-pressable>
-                      {generatingId === selectedDatasource.id ? 'Generating...' : 'Generate schema'}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => syncSchema(selectedDatasource, 'generate')}
+                      disabled={!schemaUnlocked || generatingId === selectedDatasource.id}
+                    >
+                      {generatingId === selectedDatasource.id
+                        ? 'Generating...'
+                        : 'Generate schema'}
                     </button>
-                    <button type="button" className="secondary-button" onClick={() => syncSchema(selectedDatasource, 'refresh')} disabled={!schemaUnlocked || !selectedDatasource.lastSchemaGeneratedAt || refreshingId === selectedDatasource.id} data-pressable>
-                      {refreshingId === selectedDatasource.id ? 'Refreshing...' : 'Refresh schema'}
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => syncSchema(selectedDatasource, 'refresh')}
+                      disabled={
+                        !schemaUnlocked ||
+                        !selectedDatasource.lastSchemaGeneratedAt ||
+                        refreshingId === selectedDatasource.id
+                      }
+                    >
+                      {refreshingId === selectedDatasource.id
+                        ? 'Refreshing...'
+                        : 'Refresh schema'}
                     </button>
-                    <button type="button" className="primary-button" onClick={() => openExplorer(selectedDatasource)} disabled={!explorerUnlocked} data-pressable>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() => openExplorer(selectedDatasource)}
+                      disabled={!explorerUnlocked}
+                    >
                       Open explorer
                     </button>
                   </div>
@@ -564,42 +848,98 @@ export default function ConnectionRequestPage() {
             </div>
           </section>
 
-          <section className="surface-panel px-6 py-7" data-animate="panel" data-reveal="left">
+          <section className="surface-panel px-6 py-7">
             <div className="relative z-10">
               <div className="flex items-end justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Datasource catalog</p>
-                  <h2 className="mt-3 text-2xl font-semibold text-white">Registered connections</h2>
+                  <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                    Datasource catalog
+                  </p>
+                  <h2 className="mt-3 text-2xl font-semibold text-white">
+                    Registered connections
+                  </h2>
                 </div>
-                <span className="small-chip">{loading ? 'Loading...' : `${datasources.length} total`}</span>
+                <span className="small-chip">
+                  {loading ? 'Loading...' : `${datasources.length} total`}
+                </span>
               </div>
-
               <div className="mt-5 space-y-3">
                 {!loading && datasources.length === 0 && (
                   <div className="rounded-[22px] border border-white/8 bg-white/[0.03] p-4 text-sm text-zinc-400">
-                    No datasources yet. Create one from the form and it will appear here.
+                    No datasources yet. Create one from the form and it will appear
+                    here.
                   </div>
                 )}
 
                 {datasources.map((datasource) => {
                   const selected = datasource.id === selectedId
                   const locked = datasource.lastConnectionStatus !== 'SUCCEEDED'
+
                   return (
-                    <article key={datasource.id} className={`surface-card p-4 ${selected ? 'ring-1 ring-cyan-300/30' : ''}`} data-animate="panel" data-reveal="right">
+                    <article
+                      key={datasource.id}
+                      className={`surface-card p-4 ${selected ? 'ring-1 ring-cyan-300/30' : ''}`}
+                    >
                       <div className="flex items-start justify-between gap-3">
-                        <button type="button" className="text-left" onClick={() => setSelectedId(datasource.id)}>
-                          <h3 className="text-base font-semibold text-white">{datasource.displayName}</h3>
-                          <p className="mt-1 text-sm text-zinc-400">{datasource.databaseName} on {datasource.host}:{datasource.port}</p>
+                        <button
+                          type="button"
+                          className="text-left"
+                          onClick={() => setSelectedId(datasource.id)}
+                        >
+                          <h3 className="text-base font-semibold text-white">
+                            {datasource.displayName}
+                          </h3>
+                          <p className="mt-1 text-sm text-zinc-400">
+                            {datasource.databaseName} on {datasource.host}:
+                            {datasource.port}
+                          </p>
                         </button>
                         <StatusPill status={datasource.lastConnectionStatus ?? null} />
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <button type="button" className="secondary-button px-4 py-2" onClick={() => startEdit(datasource)} data-pressable>Edit</button>
-                        <button type="button" className="secondary-button px-4 py-2" onClick={() => verifyDatasource(datasource)} disabled={testingId === datasource.id} data-pressable>{testingId === datasource.id ? 'Testing...' : 'Test'}</button>
-                        <button type="button" className="secondary-button px-4 py-2" onClick={() => syncSchema(datasource, 'generate')} disabled={locked || generatingId === datasource.id} data-pressable>Generate</button>
-                        <button type="button" className="secondary-button px-4 py-2" onClick={() => syncSchema(datasource, 'refresh')} disabled={locked || !datasource.lastSchemaGeneratedAt || refreshingId === datasource.id} data-pressable>Refresh</button>
-                        <button type="button" className="secondary-button px-4 py-2 text-red-100" onClick={() => setPendingDelete(datasource)} data-pressable>Delete</button>
+                        <button
+                          type="button"
+                          className="secondary-button px-4 py-2"
+                          onClick={() => startEdit(datasource)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button px-4 py-2"
+                          onClick={() => verifyDatasource(datasource)}
+                          disabled={testingId === datasource.id}
+                        >
+                          {testingId === datasource.id ? 'Testing...' : 'Test'}
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button px-4 py-2"
+                          onClick={() => syncSchema(datasource, 'generate')}
+                          disabled={locked || generatingId === datasource.id}
+                        >
+                          Generate
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button px-4 py-2"
+                          onClick={() => syncSchema(datasource, 'refresh')}
+                          disabled={
+                            locked ||
+                            !datasource.lastSchemaGeneratedAt ||
+                            refreshingId === datasource.id
+                          }
+                        >
+                          Refresh
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button px-4 py-2 text-red-100"
+                          onClick={() => setPendingDelete(datasource)}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </article>
                   )
@@ -612,14 +952,34 @@ export default function ConnectionRequestPage() {
 
       {pendingDelete && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-md">
-          <div className="surface-panel w-full max-w-md px-6 py-6" data-reveal="up">
-            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Confirm delete</p>
-            <h2 className="mt-3 text-2xl font-semibold text-white">Remove {pendingDelete.displayName}?</h2>
-            <p className="mt-4 text-sm leading-6 text-zinc-300">This deletes the datasource record and its cached schema snapshot. The actual PostgreSQL database is not touched.</p>
+          <div className="surface-panel w-full max-w-md px-6 py-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+              Confirm delete
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold text-white">
+              Remove {pendingDelete.displayName}?
+            </h2>
+            <p className="mt-4 text-sm leading-6 text-zinc-300">
+              This deletes the datasource record and its cached schema snapshot. The
+              actual PostgreSQL database is not touched.
+            </p>
             <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button type="button" className="secondary-button" onClick={() => setPendingDelete(null)} data-pressable>Cancel</button>
-              <button type="button" className="primary-button" onClick={removeDatasource} disabled={deletingId === pendingDelete.id} data-pressable>
-                {deletingId === pendingDelete.id ? 'Deleting...' : 'Delete datasource'}
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setPendingDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={removeDatasource}
+                disabled={deletingId === pendingDelete.id}
+              >
+                {deletingId === pendingDelete.id
+                  ? 'Deleting...'
+                  : 'Delete datasource'}
               </button>
             </div>
           </div>

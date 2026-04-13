@@ -267,6 +267,16 @@ export function parseDraftValue(column: SchemaColumn, raw: string): unknown {
     return JSON.parse(trimmed)
   }
 
+  if (column.timestampWithTimeZone) {
+    const localDate = new Date(trimmed)
+
+    if (Number.isNaN(localDate.getTime())) {
+      return trimmed
+    }
+
+    return localDate.toISOString()
+  }
+
   return trimmed
 }
 
@@ -286,6 +296,16 @@ export function serializeValueForInput(column: SchemaColumn, value: unknown) {
     typeof value === 'string' &&
     value.includes('T')
   ) {
+    if (column.timestampWithTimeZone) {
+      const parsedDate = new Date(value)
+
+      if (!Number.isNaN(parsedDate.getTime())) {
+        const offsetMs = parsedDate.getTimezoneOffset() * 60_000
+        const localDate = new Date(parsedDate.getTime() - offsetMs)
+        return localDate.toISOString().slice(0, 16)
+      }
+    }
+
     return value.slice(0, 16)
   }
 

@@ -1,4 +1,4 @@
-import { apiFetch, buildApiRequestError } from './http'
+import { apiFetch, buildApiRequestError, initializeRequestSecurity } from './http'
 
 export type SignUpPayload = {
   username: string
@@ -17,48 +17,21 @@ export type CurrentUser = {
 }
 
 export async function signUpUser(payload: SignUpPayload): Promise<void> {
-  const requestBody = {
-    username: payload.username.trim(),
-    email: payload.email.trim(),
-    password: payload.password,
-  }
-
-  console.info('[auth][signup] submitting request', {
-    username: requestBody.username,
-    email: requestBody.email,
-    passwordLength: requestBody.password.length,
+  const response = await apiFetch('/account/signup', {
+    method: 'POST',
+    retryOnUnauthorized: false,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      username: payload.username.trim(),
+      email: payload.email.trim(),
+      password: payload.password,
+    }),
   })
 
-  try {
-    const response = await apiFetch('/account/signup', {
-      method: 'POST',
-      retryOnUnauthorized: false,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    })
-
-    if (!response.ok) {
-      const error = await buildApiRequestError(response, 'Sign up failed')
-
-      console.error('[auth][signup] request failed', {
-        status: error.status ?? response.status,
-        path: error.path ?? '/account/signup',
-        timestamp: error.timestamp,
-        errorLabel: error.errorLabel,
-        message: error.message,
-      })
-
-      throw error
-    }
-
-    console.info('[auth][signup] request succeeded', {
-      status: response.status,
-    })
-  } catch (error) {
-    console.error('[auth][signup] unexpected error', error)
-    throw error
+  if (!response.ok) {
+    throw await buildApiRequestError(response, 'Sign up failed')
   }
 }
 
@@ -78,6 +51,8 @@ export async function logInUser(payload: LogInPayload): Promise<void> {
   if (!response.ok) {
     throw await buildApiRequestError(response, 'Log in failed')
   }
+
+  await initializeRequestSecurity()
 }
 
 export async function logOutUser(): Promise<void> {
@@ -93,7 +68,6 @@ export async function logOutUser(): Promise<void> {
 export async function getCurrentUser(): Promise<CurrentUser> {
   const response = await apiFetch('/account/me', {
     method: 'GET',
-    retryOnUnauthorized: false,
   })
 
   if (!response.ok) {

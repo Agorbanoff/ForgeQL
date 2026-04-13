@@ -2,6 +2,7 @@ const rawBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 const API_BASE_URL = (rawBaseUrl || '/api').replace(/\/$/, '')
 const CSRF_COOKIE_NAME = 'XSRF-TOKEN'
 const CSRF_HEADER_NAME = 'X-XSRF-TOKEN'
+export const AUTH_REQUIRED_EVENT = 'forgeql:auth-required'
 const CSRF_EXEMPT_PATHS = new Set([
   '/account/signup',
   '/account/login',
@@ -16,36 +17,46 @@ type RequestOptions = RequestInit & {
 export type ApiErrorShape = {
   timestamp?: string
   status?: number
-  path?: string
-  message?: string
   error?: string
+  code?: string
+  message?: string
+  datasourceId?: number
+  targetPath?: string
 }
 
 export class ApiRequestError extends Error {
   status?: number
-  path?: string
   timestamp?: string
   errorLabel?: string
+  code?: string
+  datasourceId?: number
+  targetPath?: string
 
   constructor(message: string, details?: ApiErrorShape) {
     super(message)
     this.name = 'ApiRequestError'
     this.status = details?.status
-    this.path = details?.path
     this.timestamp = details?.timestamp
     this.errorLabel = details?.error
+    this.code = details?.code
+    this.datasourceId = details?.datasourceId
+    this.targetPath = details?.targetPath
   }
 }
 
 async function refreshAccessToken() {
-  const headers = await buildRequestHeaders('/token/refresh', { method: 'POST' })
-  const response = await fetch(`${API_BASE_URL}/token/refresh`, {
-    method: 'POST',
-    headers,
-    credentials: 'include',
-  })
+  try {
+    const headers = await buildRequestHeaders('/token/refresh', { method: 'POST' })
+    const response = await fetch(`${API_BASE_URL}/token/refresh`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+    })
 
-  return response.ok
+    return response.ok
+  } catch {
+    return false
+  }
 }
 
 function getCookie(name: string): string | null {
@@ -67,6 +78,14 @@ function isMutatingMethod(method?: string) {
   return !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(normalized)
 }
 
+function isAccessDeniedError(body: ApiErrorShape | string | null) {
+  if (!body || typeof body === 'string') {
+    return false
+  }
+
+  return body.status === 403 || body.code === 'ACCESS_DENIED'
+}
+
 async function fetchCsrfToken() {
   const response = await fetch(`${API_BASE_URL}/account/csrf`, {
     method: 'GET',
@@ -74,6 +93,10 @@ async function fetchCsrfToken() {
   })
 
   return response.ok
+}
+
+export async function initializeRequestSecurity() {
+  await ensureCsrfToken()
 }
 
 async function ensureCsrfToken() {
@@ -174,6 +197,10 @@ export async function buildApiRequestError(
   return new ApiRequestError(fallback, { status: response.status })
 }
 
+function dispatchAuthRequired() {
+  window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT))
+}
+
 export async function apiFetch(
   path: string,
   options: RequestOptions = {}
@@ -214,9 +241,8 @@ export async function apiFetch(
     const refreshed = await refreshAccessToken()
 
     if (!refreshed) {
-      localStorage.removeItem('sigmaql.session-active')
-      window.location.href = '/login'
-      throw new Error('Unauthorized')
+      dispatchAuthRequired()
+      throw await buildApiRequestError(response, 'Authentication is required')
     }
 
     const retryHeaders = await buildRequestHeaders(path, {
@@ -239,12 +265,36 @@ export async function apiFetch(
     }
 
     if (retryResponse.status === 401) {
-      localStorage.removeItem('sigmaql.session-active')
-      window.location.href = '/login'
-      throw new Error('Unauthorized')
+      dispatchAuthRequired()
+      throw await buildApiRequestError(retryResponse, 'Authentication is required')
     }
 
     return retryResponse
+  }
+
+  if (response.status === 403 && isMutatingMethod(rest.method)) {
+    const errorBody = await parseResponseBody<ApiErrorShape>(response.clone())
+
+    if (isAccessDeniedError(errorBody)) {
+      await fetchCsrfToken()
+
+      const retryHeaders = await buildRequestHeaders(path, {
+        headers,
+        method: rest.method,
+      })
+
+      try {
+        return await fetch(`${API_BASE_URL}${path}`, {
+          ...rest,
+          headers: retryHeaders,
+          credentials: 'include',
+        })
+      } catch {
+        throw new ApiRequestError(
+          'Cannot reach the backend. Check that the API server is running and that the frontend proxy or API base URL is correct.'
+        )
+      }
+    }
   }
 
   return response

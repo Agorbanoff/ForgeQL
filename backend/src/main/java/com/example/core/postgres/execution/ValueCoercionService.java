@@ -179,6 +179,15 @@ public class ValueCoercionService {
         if (value instanceof Boolean booleanValue) {
             return booleanValue;
         }
+        if (value instanceof String stringValue) {
+            String normalizedValue = stringValue.trim().toLowerCase(Locale.ROOT);
+            if ("true".equals(normalizedValue)) {
+                return true;
+            }
+            if ("false".equals(normalizedValue)) {
+                return false;
+            }
+        }
         throw new InvalidMutationValueException("Column " + fieldPath + " must receive a boolean value");
     }
 
@@ -373,6 +382,18 @@ public class ValueCoercionService {
                 throw new InvalidMutationValueException("Column " + fieldPath + " must receive a finite numeric value");
             }
             return BigDecimal.valueOf(doubleValue);
+        }
+        if (value instanceof String stringValue) {
+            String normalizedValue = stringValue.trim();
+            if (normalizedValue.isEmpty()) {
+                throw new InvalidMutationValueException("Column " + fieldPath + " must receive a numeric value");
+            }
+
+            try {
+                return new BigDecimal(normalizedValue);
+            } catch (NumberFormatException e) {
+                throw new InvalidMutationValueException("Column " + fieldPath + " must receive a numeric value");
+            }
         }
 
         throw new InvalidMutationValueException("Column " + fieldPath + " must receive a numeric value");

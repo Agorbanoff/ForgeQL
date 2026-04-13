@@ -1,11 +1,14 @@
 package com.example.core.postgres.plan;
 
 import com.example.common.exceptions.InvalidExecutionPlanException;
+import com.example.common.exceptions.InvalidMutationValueException;
+import com.example.common.exceptions.UnsupportedMutationTypeException;
 import com.example.core.postgres.ast.FilterAst;
 import com.example.core.postgres.ast.PaginationAst;
 import com.example.core.postgres.ast.ProjectionAst;
 import com.example.core.postgres.ast.ReadFilterOperator;
 import com.example.core.postgres.ast.SortAst;
+import com.example.core.postgres.execution.ValueCoercionService;
 import com.example.core.postgres.schema.model.GeneratedSchema;
 import com.example.core.postgres.schema.model.SchemaColumn;
 import com.example.core.postgres.schema.model.SchemaTable;
@@ -20,6 +23,12 @@ import java.util.Set;
 
 @Component
 public class ReadQueryPlanValidator {
+
+    private final ValueCoercionService valueCoercionService;
+
+    public ReadQueryPlanValidator(ValueCoercionService valueCoercionService) {
+        this.valueCoercionService = valueCoercionService;
+    }
 
     public SchemaTable validateReadableTable(GeneratedSchema schema, String qualifiedTableName) {
         if (schema == null) {
@@ -109,7 +118,8 @@ public class ReadQueryPlanValidator {
             );
             validateOperatorCompatibility(field, filter.operator(), column);
             List<Object> validatedValues = validateFilterValues(field, filter.operator(), filter.values());
-            validatedFilters.add(new FilterAst(field, filter.operator(), validatedValues));
+            List<Object> coercedValues = coerceFilterValues(field, filter.operator(), validatedValues, column);
+            validatedFilters.add(new FilterAst(field, filter.operator(), coercedValues));
         }
 
         return List.copyOf(validatedFilters);
@@ -308,6 +318,30 @@ public class ReadQueryPlanValidator {
             throw new InvalidExecutionPlanException(filterMessage(field, operator) + " does not accept values");
         }
         return List.of();
+    }
+
+    private List<Object> coerceFilterValues(
+            String field,
+            ReadFilterOperator operator,
+            List<Object> values,
+            SchemaColumn column
+    ) {
+        if (operator == ReadFilterOperator.IS_NULL || operator == ReadFilterOperator.IS_NOT_NULL) {
+            return List.of();
+        }
+
+        List<Object> coercedValues = new ArrayList<>(values.size());
+        for (Object value : values) {
+            try {
+                coercedValues.add(valueCoercionService.coerceValue(column, value));
+            } catch (InvalidMutationValueException | UnsupportedMutationTypeException exception) {
+                throw new InvalidExecutionPlanException(
+                        filterMessage(field, operator) + " is invalid: " + exception.getMessage()
+                );
+            }
+        }
+
+        return List.copyOf(coercedValues);
     }
 
     private Map<String, SchemaColumn> columnsByName(SchemaTable table) {

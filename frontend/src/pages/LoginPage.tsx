@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { logInUser } from '../api/accountApi'
+import { useAuth } from '../auth/AuthProvider'
 import AuthLayout from '../components/AuthLayout'
-import { clearSavedDatasource, markSessionActive } from '../lib/appState'
+import { clearSavedDatasource } from '../lib/appState'
 
 type LoginLocationState = {
   email?: string
@@ -13,23 +13,21 @@ type LoginLocationState = {
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { login } = useAuth()
   const locationState = (location.state ?? null) as LoginLocationState | null
 
   const [email, setEmail] = useState(locationState?.email ?? '')
   const [password, setPassword] = useState(locationState?.password ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(
-    locationState?.fromSignup
-      ? 'Account created. Log in to generate the session tokens and continue.'
-      : null
-  )
+  const success = locationState?.fromSignup
+    ? 'Account created. Log in to continue into datasource management.'
+    : null
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     setError(null)
-    setSuccess(null)
 
     if (!email.trim()) {
       setError('Email is required.')
@@ -44,18 +42,13 @@ export default function LoginPage() {
     try {
       setLoading(true)
 
-      await logInUser({
+      await login({
         email: email.trim(),
         password,
       })
 
       clearSavedDatasource()
-      markSessionActive()
-      setSuccess('Logged in. Opening datasource management...')
-
-      setTimeout(() => {
-        navigate('/connection-request', { replace: true })
-      }, 500)
+      navigate('/datasource', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Log in failed.')
     } finally {

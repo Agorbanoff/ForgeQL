@@ -26,6 +26,7 @@ export function useElegantAnimations<T extends HTMLElement>(
       }
 
       const reduceMotion = self.matches.reducedMotion
+      const cleanups: Array<() => void> = []
 
       if (!reduceMotion) {
         const sceneTargets = utils.$('[data-animate="scene"]')
@@ -37,6 +38,7 @@ export function useElegantAnimations<T extends HTMLElement>(
         const mediumFloatTargets = utils.$('[data-float="medium"]')
         const pulseTargets = utils.$('[data-glow="pulse"]')
         const countTargets = utils.$('[data-count-up]') as HTMLElement[]
+        const revealTargets = utils.$('[data-reveal]') as HTMLElement[]
 
         if (sceneTargets.length) {
           animate(sceneTargets, {
@@ -146,11 +148,53 @@ export function useElegantAnimations<T extends HTMLElement>(
             },
           })
         })
+
+        if (revealTargets.length) {
+          const observer = new IntersectionObserver(
+            (entries) => {
+              entries.forEach((entry, index) => {
+                if (!entry.isIntersecting) {
+                  return
+                }
+
+                const element = entry.target as HTMLElement
+                const direction = element.dataset.reveal ?? 'up'
+                const translateX =
+                  direction === 'right' ? [72, 0] : direction === 'left' ? [-72, 0] : 0
+                const translateY =
+                  direction === 'up' ? [40, 0] : direction === 'down' ? [-40, 0] : 0
+
+                animate(element, {
+                  opacity: [0, 1],
+                  filter: ['blur(10px)', 'blur(0px)'],
+                  translateX,
+                  translateY,
+                  scale: [0.985, 1],
+                  duration: 920,
+                  delay: index * 45,
+                  ease: 'out(4)',
+                })
+
+                observer.unobserve(element)
+              })
+            },
+            {
+              threshold: 0.18,
+              rootMargin: '0px 0px -12% 0px',
+            }
+          )
+
+          revealTargets.forEach((element) => {
+            element.style.opacity = '0'
+            observer.observe(element)
+          })
+
+          cleanups.push(() => observer.disconnect())
+        }
       }
 
       const tiltTargets = utils.$('[data-tilt]') as HTMLElement[]
       const pressables = utils.$('[data-pressable]:not([data-tilt])') as HTMLElement[]
-      const cleanups: Array<() => void> = []
 
       tiltTargets.forEach((element) => {
         const resetTilt = () => {

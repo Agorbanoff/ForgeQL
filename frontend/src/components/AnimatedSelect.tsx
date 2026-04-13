@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export type AnimatedSelectOption = {
   value: string
@@ -25,17 +26,43 @@ export function AnimatedSelect({
 }: AnimatedSelectProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
   const listboxId = useId()
   const selectedOption = options.find((option) => option.value === value)
   const isOpen = !disabled && open
+  const [menuStyle, setMenuStyle] = useState<{
+    top: number
+    left: number
+    width: number
+  } | null>(null)
 
   useEffect(() => {
     if (!isOpen) {
       return
     }
 
+    function updateMenuPosition() {
+      if (!triggerRef.current) {
+        return
+      }
+
+      const rect = triggerRef.current.getBoundingClientRect()
+      setMenuStyle({
+        top: rect.bottom + 12,
+        left: rect.left,
+        width: rect.width,
+      })
+    }
+
+    updateMenuPosition()
+
     function handlePointerDown(event: PointerEvent) {
-      if (rootRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (
+        rootRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
         return
       }
 
@@ -48,12 +75,20 @@ export function AnimatedSelect({
       }
     }
 
+    function handleViewportChange() {
+      updateMenuPosition()
+    }
+
     window.addEventListener('pointerdown', handlePointerDown)
     window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('resize', handleViewportChange)
+    window.addEventListener('scroll', handleViewportChange, true)
 
     return () => {
       window.removeEventListener('pointerdown', handlePointerDown)
       window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('resize', handleViewportChange)
+      window.removeEventListener('scroll', handleViewportChange, true)
     }
   }, [isOpen])
 
@@ -64,6 +99,7 @@ export function AnimatedSelect({
       data-open={isOpen ? 'true' : 'false'}
     >
       <button
+        ref={triggerRef}
         type="button"
         className="input-shell select-trigger"
         onClick={() => {
@@ -84,33 +120,49 @@ export function AnimatedSelect({
         <span className="select-caret" aria-hidden="true" />
       </button>
 
-      <div className="select-menu" id={listboxId} role="listbox">
-        {options.map((option) => {
-          const active = option.value === value
-
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="option"
-              aria-selected={active}
-              className={`select-option ${active ? 'is-active' : ''}`}
-              onClick={() => {
-                onChange(option.value)
-                setOpen(false)
+      {isOpen && menuStyle
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className="select-menu is-portal"
+              id={listboxId}
+              role="listbox"
+              style={{
+                position: 'fixed',
+                top: `${menuStyle.top}px`,
+                left: `${menuStyle.left}px`,
+                width: `${menuStyle.width}px`,
               }}
-              data-pressable
             >
-              <span className="select-option-label">{option.label}</span>
-              {option.description && (
-                <span className="select-option-description">
-                  {option.description}
-                </span>
-              )}
-            </button>
+              {options.map((option) => {
+                const active = option.value === value
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    className={`select-option ${active ? 'is-active' : ''}`}
+                    onClick={() => {
+                      onChange(option.value)
+                      setOpen(false)
+                    }}
+                    data-pressable
+                  >
+                    <span className="select-option-label">{option.label}</span>
+                    {option.description && (
+                      <span className="select-option-description">
+                        {option.description}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>,
+            document.body
           )
-        })}
-      </div>
+        : null}
     </div>
   )
 }

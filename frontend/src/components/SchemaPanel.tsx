@@ -7,7 +7,7 @@ type SchemaPanelProps = {
 }
 
 export function SchemaPanel({ connection }: SchemaPanelProps) {
-  const rootRef = useElegantAnimations<HTMLDivElement>([connection?.name])
+  const rootRef = useElegantAnimations<HTMLDivElement>([connection?.displayName])
   const entities = Object.entries(schema.entities)
 
   return (
@@ -25,7 +25,7 @@ export function SchemaPanel({ connection }: SchemaPanelProps) {
           <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/80">
             Connected
           </p>
-          <p className="mt-3 text-base font-semibold text-cyan-100">{connection.name}</p>
+          <p className="mt-3 text-base font-semibold text-cyan-100">{connection.displayName}</p>
           <p className="mt-1 text-sm text-zinc-300">
             {connection.dbType} on {connection.host}:{connection.port}
           </p>

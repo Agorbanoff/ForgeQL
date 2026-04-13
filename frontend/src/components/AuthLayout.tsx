@@ -44,7 +44,7 @@ export default function AuthLayout({
 
           <div className="relative z-10 flex h-full flex-col">
             <p className="text-xs uppercase tracking-[0.32em] text-zinc-500">
-              SigmaQL
+              ForgeQL
             </p>
             <span className="section-badge mt-5 w-fit" data-animate="chip">
               {badge}

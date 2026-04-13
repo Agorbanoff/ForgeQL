@@ -34,8 +34,19 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        csrfTokenRepository.setCookiePath("/");
+
         return http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(csrfTokenRepository)
+                        .ignoringRequestMatchers(
+                                "/account/signup",
+                                "/account/login",
+                                "/account/logout",
+                                "/token/refresh"
+                        )
+                )
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exceptions -> exceptions

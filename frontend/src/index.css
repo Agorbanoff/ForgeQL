@@ -481,6 +481,11 @@ textarea {
 
   .select-shell {
     position: relative;
+    z-index: 20;
+  }
+
+  .select-shell[data-open='true'] {
+    z-index: 140;
   }
 
   .select-trigger {
@@ -520,7 +525,7 @@ textarea {
     position: absolute;
     inset-inline: 0;
     top: calc(100% + 0.75rem);
-    z-index: 40;
+    z-index: 160;
     max-height: 18rem;
     overflow: auto;
     border-radius: 22px;
@@ -536,6 +541,15 @@ textarea {
       opacity 180ms ease,
       transform 180ms ease;
     padding: 0.45rem;
+  }
+
+  .select-menu.is-portal {
+    inset-inline: auto;
+    top: auto;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    transform-origin: top center;
   }
 
   .select-shell[data-open='true'] .select-menu {
@@ -582,5 +596,130 @@ textarea {
   .select-option-description {
     font-size: 0.74rem;
     color: rgba(165, 173, 191, 0.8);
+  }
+
+  .surface-overflow-visible {
+    overflow: visible !important;
+  }
+
+  [data-reveal] {
+    will-change: opacity, transform, filter;
+  }
+
+  .status-pill {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium;
+  }
+
+  .status-pill::before {
+    content: '';
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: currentColor;
+    box-shadow: 0 0 14px currentColor;
+  }
+
+  .status-pill-success {
+    border-color: rgba(52, 211, 153, 0.26);
+    background: rgba(52, 211, 153, 0.1);
+    color: #bbf7d0;
+  }
+
+  .status-pill-danger {
+    border-color: rgba(248, 113, 113, 0.28);
+    background: rgba(248, 113, 113, 0.1);
+    color: #fecaca;
+  }
+
+  .status-pill-warning {
+    border-color: rgba(251, 191, 36, 0.28);
+    background: rgba(251, 191, 36, 0.1);
+    color: #fde68a;
+  }
+
+  .status-pill-neutral {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(236, 240, 248, 0.86);
+  }
+
+  .mini-capability {
+    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em];
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(165, 173, 191, 0.84);
+  }
+
+  .mini-capability.is-active {
+    border-color: rgba(82, 215, 255, 0.24);
+    background: rgba(82, 215, 255, 0.12);
+    color: rgba(220, 248, 255, 0.98);
+  }
+
+  .chip-toggle {
+    @apply rounded-full border px-3 py-2 text-xs font-medium transition;
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(236, 240, 248, 0.82);
+  }
+
+  .chip-toggle:hover {
+    border-color: rgba(82, 215, 255, 0.2);
+    background: rgba(82, 215, 255, 0.08);
+  }
+
+  .chip-toggle.is-active {
+    border-color: rgba(82, 215, 255, 0.28);
+    background: linear-gradient(180deg, rgba(82, 215, 255, 0.16), rgba(82, 215, 255, 0.08));
+    color: white;
+    box-shadow: 0 12px 26px rgba(82, 215, 255, 0.18);
+  }
+
+  .data-table {
+    border-collapse: collapse;
+    background:
+      linear-gradient(180deg, rgba(8, 12, 18, 0.92), rgba(8, 12, 18, 0.84)),
+      radial-gradient(circle at top right, rgba(255, 184, 108, 0.08), transparent 26%);
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .data-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(165, 173, 191, 0.84);
+    background: rgba(7, 11, 17, 0.96);
+    backdrop-filter: blur(18px);
+  }
+
+  .data-table td {
+    font-size: 0.9rem;
+    color: rgba(239, 242, 248, 0.9);
+  }
+
+  .data-table tbody tr {
+    transition: background 180ms ease, transform 180ms ease;
+    cursor: pointer;
+  }
+
+  .data-table tbody tr:hover {
+    background: rgba(82, 215, 255, 0.06);
+  }
+
+  .data-table tbody tr.is-selected {
+    background:
+      linear-gradient(90deg, rgba(82, 215, 255, 0.14), rgba(82, 215, 255, 0.03)),
+      rgba(255, 255, 255, 0.02);
   }
 }

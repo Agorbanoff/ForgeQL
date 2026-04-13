@@ -1,33 +1,48 @@
 import { apiFetch, buildApiRequestError, parseResponseBody } from './http'
+import type {
+  DatasourceConnectionTestResult,
+  DatasourcePayload,
+  DatasourceRecord,
+} from '../types/platform'
 
-export type DataSourcePayload = {
-  name: string
-  dbType: 'POSTGRESQL' | 'MYSQL'
-  host: string
-  port: number
-  databaseName: string
-  username: string
-  encryptedPassword: string
-  schemaName?: string
-  SslEnabled: boolean
-  sslMode?: 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL'
+async function parseDatasourceResponse(
+  response: Response,
+  fallback: string
+): Promise<DatasourceRecord> {
+  if (!response.ok) {
+    throw await buildApiRequestError(response, fallback)
+  }
+
+  const body = await parseResponseBody<DatasourceRecord>(response)
+  if (!body || typeof body !== 'object') {
+    throw new Error(fallback)
+  }
+
+  return body as DatasourceRecord
 }
 
-export type SavedDataSource = {
-  id: number
-  name: string
-  dbType: string
-  host: string
-  port: number
-  databaseName: string
-  username: string
-  schemaName?: string | null
-  SslEnabled?: boolean
-  sslEnabled?: boolean
-  sslMode?: string | null
+export async function listDataSources(): Promise<DatasourceRecord[]> {
+  const response = await apiFetch('/datasource', {
+    method: 'GET',
+  })
+
+  if (!response.ok) {
+    throw await buildApiRequestError(response, 'Loading datasources failed')
+  }
+
+  const body = await parseResponseBody<DatasourceRecord[]>(response)
+  return Array.isArray(body) ? body : []
 }
 
-export async function saveDataSource(payload: DataSourcePayload): Promise<void> {
+export async function getDataSource(id: number): Promise<DatasourceRecord> {
+  const response = await apiFetch(`/datasource/${id}`, {
+    method: 'GET',
+  })
+
+  return parseDatasourceResponse(response, 'Loading datasource failed')
+}
+
+export async function createDataSource(payload: DatasourcePayload): Promise<void> {
   const response = await apiFetch('/datasource', {
     method: 'POST',
     headers: {
@@ -41,15 +56,48 @@ export async function saveDataSource(payload: DataSourcePayload): Promise<void> 
   }
 }
 
-export async function getDataSources(): Promise<SavedDataSource[]> {
-  const response = await apiFetch('/datasource', {
-    method: 'GET',
+export async function updateDataSource(
+  id: number,
+  payload: DatasourcePayload
+): Promise<void> {
+  const response = await apiFetch(`/datasource/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
   })
 
   if (!response.ok) {
-    throw await buildApiRequestError(response, 'Loading datasources failed')
+    throw await buildApiRequestError(response, 'Updating datasource failed')
+  }
+}
+
+export async function deleteDataSource(id: number): Promise<void> {
+  const response = await apiFetch(`/datasource/${id}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    throw await buildApiRequestError(response, 'Deleting datasource failed')
+  }
+}
+
+export async function testDataSourceConnection(
+  id: number
+): Promise<DatasourceConnectionTestResult> {
+  const response = await apiFetch(`/datasource/${id}/test-connection`, {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    throw await buildApiRequestError(response, 'Testing datasource failed')
   }
 
-  const body = await parseResponseBody<SavedDataSource[]>(response)
-  return Array.isArray(body) ? body : []
+  const body = await parseResponseBody<DatasourceConnectionTestResult>(response)
+  if (!body || typeof body !== 'object') {
+    throw new Error('Testing datasource failed')
+  }
+
+  return body as DatasourceConnectionTestResult
 }

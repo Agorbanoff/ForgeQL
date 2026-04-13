@@ -1,21 +1,62 @@
-export type StoredDataSourceSummary = {
-  name: string
-  dbType: string
+import type { DatabaseType } from '../types/platform'
+
+export type StoredDatasourceSelection = {
+  id: number
+  displayName: string
+  dbType: DatabaseType
   host: string
   port: number
   databaseName: string
+  schemaName: string
   username: string
-  schemaName?: string | null
+  lastSchemaGeneratedAt?: string | null
+  lastSchemaFingerprint?: string | null
 }
 
-export type StoredDataSourceDetails = StoredDataSourceSummary & {
-  encryptedPassword: string
-  sslEnabled: boolean
-  sslMode?: string | null
-}
+export type StoredDataSourceSummary = StoredDatasourceSelection
 
 const SESSION_KEY = 'sigmaql.session-active'
-const DATASOURCE_KEY = 'sigmaql.saved-datasource'
+const DATASOURCE_KEY = 'sigmaql.selected-datasource'
+
+function safeParseSelection(raw: string): StoredDatasourceSelection | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredDatasourceSelection>
+
+    if (
+      typeof parsed.id !== 'number' ||
+      typeof parsed.displayName !== 'string' ||
+      typeof parsed.dbType !== 'string' ||
+      typeof parsed.host !== 'string' ||
+      typeof parsed.port !== 'number' ||
+      typeof parsed.databaseName !== 'string' ||
+      typeof parsed.schemaName !== 'string' ||
+      typeof parsed.username !== 'string'
+    ) {
+      return null
+    }
+
+    return {
+      id: parsed.id,
+      displayName: parsed.displayName,
+      dbType: parsed.dbType as DatabaseType,
+      host: parsed.host,
+      port: parsed.port,
+      databaseName: parsed.databaseName,
+      schemaName: parsed.schemaName,
+      username: parsed.username,
+      lastSchemaGeneratedAt:
+        typeof parsed.lastSchemaGeneratedAt === 'string'
+          ? parsed.lastSchemaGeneratedAt
+          : null,
+      lastSchemaFingerprint:
+        typeof parsed.lastSchemaFingerprint === 'string'
+          ? parsed.lastSchemaFingerprint
+          : null,
+    }
+  } catch {
+    return null
+  }
+}
 
 export function markSessionActive() {
   localStorage.setItem(SESSION_KEY, 'true')
@@ -29,12 +70,8 @@ export function hasLocalSession() {
   return localStorage.getItem(SESSION_KEY) === 'true'
 }
 
-export function storeSavedDatasource(summary: StoredDataSourceSummary) {
-  localStorage.setItem(DATASOURCE_KEY, JSON.stringify(summary))
-}
-
-export function storeSavedDatasourceDetails(details: StoredDataSourceDetails) {
-  localStorage.setItem(DATASOURCE_KEY, JSON.stringify(details))
+export function storeSelectedDatasource(selection: StoredDatasourceSelection) {
+  localStorage.setItem(DATASOURCE_KEY, JSON.stringify(selection))
 }
 
 export function clearSavedDatasource() {
@@ -42,45 +79,33 @@ export function clearSavedDatasource() {
 }
 
 export function hasSavedDatasource() {
-  return localStorage.getItem(DATASOURCE_KEY) !== null
+  const raw = localStorage.getItem(DATASOURCE_KEY)
+
+  if (!raw) {
+    return false
+  }
+
+  const parsed = safeParseSelection(raw)
+  if (!parsed) {
+    localStorage.removeItem(DATASOURCE_KEY)
+    return false
+  }
+
+  return true
 }
 
-export function getStoredDatasourceSummary(): StoredDataSourceSummary | null {
+export function getStoredDatasourceDetails(): StoredDatasourceSelection | null {
   const raw = localStorage.getItem(DATASOURCE_KEY)
 
   if (!raw) {
     return null
   }
 
-  try {
-    return JSON.parse(raw) as StoredDataSourceSummary
-  } catch {
+  const parsed = safeParseSelection(raw)
+  if (!parsed) {
     localStorage.removeItem(DATASOURCE_KEY)
     return null
   }
-}
 
-export function getStoredDatasourceDetails(): StoredDataSourceDetails | null {
-  const summary = getStoredDatasourceSummary()
-
-  if (!summary) {
-    return null
-  }
-
-  return {
-    ...summary,
-    encryptedPassword:
-      'encryptedPassword' in summary &&
-      typeof summary.encryptedPassword === 'string'
-        ? summary.encryptedPassword
-        : '',
-    sslEnabled:
-      'sslEnabled' in summary && typeof summary.sslEnabled === 'boolean'
-        ? summary.sslEnabled
-        : false,
-    sslMode:
-      'sslMode' in summary && typeof summary.sslMode === 'string'
-        ? summary.sslMode
-        : null,
-  }
+  return parsed
 }

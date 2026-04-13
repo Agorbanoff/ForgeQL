@@ -51,7 +51,7 @@ export default function LoginPage() {
 
       clearSavedDatasource()
       markSessionActive()
-      setSuccess('Logged in. Opening datasource setup...')
+      setSuccess('Logged in. Opening datasource management...')
 
       setTimeout(() => {
         navigate('/connection-request', { replace: true })
@@ -67,7 +67,7 @@ export default function LoginPage() {
     <AuthLayout
       badge="Step 1 of 3"
       title="Log in before the workspace opens."
-      description="The client flow now starts here. After login succeeds the app moves directly into datasource setup, and the session cookies are issued by the backend."
+      description="Authentication opens the secured console. After login succeeds the app moves directly into datasource management, and the session cookies are issued by the backend."
       formTitle="Log in"
       formDescription="Use the same email and password that belong to the account you created."
       highlights={[

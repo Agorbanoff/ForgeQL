@@ -47,27 +47,27 @@ export default function LandingPage() {
 
         <div className="relative z-10">
           <span className="section-badge" data-animate="chip">
-            Guided client flow
+            Production-ready data console
           </span>
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
             <div>
               <p className="text-xs uppercase tracking-[0.32em] text-zinc-500">
-                SigmaQL
+                ForgeQL
               </p>
               <h1
                 className="display-title mt-4 max-w-[12ch] text-[3.4rem] text-white sm:text-[4.6rem] lg:text-[5.4rem]"
                 data-animate="hero"
               >
-                Cleaner access to the query workspace.
+                Explore PostgreSQL with a premium runtime console.
               </h1>
               <p
                 className="display-copy mt-5 max-w-xl text-sm sm:text-base"
                 data-animate="hero"
               >
-                SigmaQL gives clients a schema-first surface for building structured
-                queries. The product flow is simple: access first, datasource setup
-                second, workspace last.
+                ForgeQL turns live PostgreSQL schemas into a controlled interface for
+                discovery, aggregates, and row-level operations without exposing raw
+                SQL.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">

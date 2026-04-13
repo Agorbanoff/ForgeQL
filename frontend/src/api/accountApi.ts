@@ -11,6 +11,11 @@ export type LogInPayload = {
   password: string
 }
 
+export type CurrentUser = {
+  id: number
+  email: string
+}
+
 export async function signUpUser(payload: SignUpPayload): Promise<void> {
   const requestBody = {
     username: payload.username.trim(),
@@ -83,4 +88,18 @@ export async function logOutUser(): Promise<void> {
   if (!response.ok) {
     throw await buildApiRequestError(response, 'Log out failed')
   }
+}
+
+export async function getCurrentUser(): Promise<CurrentUser> {
+  const response = await apiFetch('/account/me', {
+    method: 'GET',
+    retryOnUnauthorized: false,
+  })
+
+  if (!response.ok) {
+    throw await buildApiRequestError(response, 'Loading current user failed')
+  }
+
+  const body = await response.json()
+  return body as CurrentUser
 }

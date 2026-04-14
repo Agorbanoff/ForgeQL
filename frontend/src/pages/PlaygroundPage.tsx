@@ -1256,7 +1256,7 @@ export default function PlaygroundPage() {
           </p>
         </section>
       ) : (
-        <div className="mt-6 grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
+        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(18rem,24%)_minmax(0,46%)_minmax(20rem,30%)]">
           <aside className="space-y-6">
             <section className="surface-panel surface-overflow-visible px-5 py-6 sm:px-6">
               <div className="flex items-end justify-between gap-3">

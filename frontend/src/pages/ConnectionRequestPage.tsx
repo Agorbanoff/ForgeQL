@@ -523,7 +523,7 @@ export default function ConnectionRequestPage() {
 
   return (
     <main ref={rootRef} className="page-shell py-6 sm:py-8">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_400px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,69%)_minmax(19rem,31%)]">
         <section className="surface-panel surface-overflow-visible px-6 py-7 sm:px-8 sm:py-8 lg:px-10">
           <div className="relative z-10">
             <div className="flex flex-wrap items-start justify-between gap-4">

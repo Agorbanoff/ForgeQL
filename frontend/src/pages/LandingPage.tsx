@@ -31,10 +31,10 @@ export default function LandingPage() {
   return (
     <main
       ref={rootRef}
-      className="page-shell flex min-h-screen items-center py-10 sm:py-14"
+      className="page-shell flex h-[100dvh] items-center overflow-hidden py-4 sm:py-5"
       data-animate="scene"
     >
-      <section className="surface-panel mx-auto w-full max-w-5xl px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
+      <section className="surface-panel mx-auto w-full max-w-[min(92vw,1280px)] px-5 py-6 sm:px-8 sm:py-7 lg:px-10">
         <div
           className="absolute left-[-3rem] top-8 h-28 w-28 rounded-full bg-[radial-gradient(circle,_rgba(255,171,115,0.58),_transparent_72%)] blur-3xl"
           data-float="slow"
@@ -50,19 +50,19 @@ export default function LandingPage() {
             Production-ready data console
           </span>
 
-          <div className="mt-8 grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+          <div className="mt-6 grid gap-6 lg:grid-cols-[1.12fr_0.88fr] lg:items-center">
             <div>
               <p className="text-xs uppercase tracking-[0.32em] text-zinc-500">
                 ForgeQL
               </p>
               <h1
-                className="display-title mt-4 max-w-[12ch] text-[3.4rem] text-white sm:text-[4.6rem] lg:text-[5.4rem]"
+                className="display-title mt-4 max-w-[11ch] text-[2.8rem] text-white sm:text-[3.8rem] lg:text-[4.7rem]"
                 data-animate="hero"
               >
                 Explore PostgreSQL with a premium runtime console.
               </h1>
               <p
-                className="display-copy mt-5 max-w-xl text-sm sm:text-base"
+                className="display-copy mt-4 max-w-xl text-sm sm:text-[0.96rem]"
                 data-animate="hero"
               >
                 ForgeQL turns live PostgreSQL schemas into a controlled interface for
@@ -70,7 +70,7 @@ export default function LandingPage() {
                 SQL.
               </p>
 
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   to="/login"
                   className="secondary-button min-w-[148px]"
@@ -93,7 +93,7 @@ export default function LandingPage() {
               {flowSteps.map((item) => (
                 <article
                   key={item.step}
-                  className="surface-card flex items-start gap-4 p-4 sm:p-5"
+                  className="surface-card flex items-start gap-4 p-4"
                   data-animate="panel"
                   data-tilt
                 >
@@ -113,9 +113,9 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="subtle-divider mt-8" data-animate="line" />
+          <div className="subtle-divider mt-6" data-animate="line" />
 
-          <div className="mt-8 grid gap-3 md:grid-cols-3">
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
             {productSignals.map((signal) => (
               <div
                 key={signal}

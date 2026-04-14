@@ -523,7 +523,7 @@ export default function ConnectionRequestPage() {
 
   return (
     <main ref={rootRef} className="page-shell py-6 sm:py-8">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,69%)_minmax(19rem,31%)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,66%)_minmax(24rem,34%)] 2xl:grid-cols-[minmax(0,64%)_minmax(26rem,36%)]">
         <section className="surface-panel surface-overflow-visible px-6 py-7 sm:px-8 sm:py-8 lg:px-10">
           <div className="relative z-10">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -720,9 +720,9 @@ export default function ConnectionRequestPage() {
 
         <aside className="grid gap-6">
           <section className="surface-panel px-6 py-7">
-            <div className="relative z-10">
-              <div className="flex items-start justify-between gap-3">
-                <div>
+            <div className="relative z-10 flex h-full flex-col">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 text-center">
                   <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                     Selected datasource
                   </p>
@@ -735,70 +735,70 @@ export default function ConnectionRequestPage() {
 
               {selectedDatasource ? (
                 <>
-                  <div className="mt-5 grid gap-3">
-                    <div className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4">
+                  <div className="mt-5 grid flex-1 content-start gap-4">
+                    <div className="rounded-[20px] border border-white/8 bg-white/[0.03] p-5 text-center">
                       <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                         Datasource name
                       </p>
-                      <p className="mt-2 text-sm font-medium text-white">
+                      <p className="mt-3 text-2xl font-semibold text-white">
                         {selectedDatasource.displayName}
                       </p>
                     </div>
-                  </div>
 
-                  {selectedDatasource.lastConnectionError && (
-                    <div className="mt-4 rounded-[22px] border border-red-500/20 bg-red-500/8 p-4 text-sm text-red-100">
-                      {selectedDatasource.lastConnectionError}
+                    {selectedDatasource.lastConnectionError && (
+                      <div className="rounded-[22px] border border-red-500/20 bg-red-500/8 p-4 text-sm text-red-100">
+                        {selectedDatasource.lastConnectionError}
+                      </div>
+                    )}
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        className="secondary-button w-full"
+                        onClick={() => verifyDatasource(selectedDatasource)}
+                        disabled={testingId === selectedDatasource.id}
+                      >
+                        {testingId === selectedDatasource.id
+                          ? 'Testing...'
+                          : 'Test connection'}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button w-full"
+                        onClick={() => syncSchema(selectedDatasource, 'generate')}
+                        disabled={!schemaUnlocked || generatingId === selectedDatasource.id}
+                      >
+                        {generatingId === selectedDatasource.id
+                          ? 'Generating...'
+                          : 'Generate schema'}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button w-full"
+                        onClick={() => syncSchema(selectedDatasource, 'refresh')}
+                        disabled={
+                          !schemaUnlocked ||
+                          !selectedDatasource.lastSchemaGeneratedAt ||
+                          refreshingId === selectedDatasource.id
+                        }
+                      >
+                        {refreshingId === selectedDatasource.id
+                          ? 'Refreshing...'
+                          : 'Refresh schema'}
+                      </button>
+                      <button
+                        type="button"
+                        className="primary-button w-full"
+                        onClick={() => openExplorer(selectedDatasource)}
+                        disabled={!explorerUnlocked}
+                      >
+                        Open explorer
+                      </button>
                     </div>
-                  )}
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => verifyDatasource(selectedDatasource)}
-                      disabled={testingId === selectedDatasource.id}
-                    >
-                      {testingId === selectedDatasource.id
-                        ? 'Testing...'
-                        : 'Test connection'}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => syncSchema(selectedDatasource, 'generate')}
-                      disabled={!schemaUnlocked || generatingId === selectedDatasource.id}
-                    >
-                      {generatingId === selectedDatasource.id
-                        ? 'Generating...'
-                        : 'Generate schema'}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => syncSchema(selectedDatasource, 'refresh')}
-                      disabled={
-                        !schemaUnlocked ||
-                        !selectedDatasource.lastSchemaGeneratedAt ||
-                        refreshingId === selectedDatasource.id
-                      }
-                    >
-                      {refreshingId === selectedDatasource.id
-                        ? 'Refreshing...'
-                        : 'Refresh schema'}
-                    </button>
-                    <button
-                      type="button"
-                      className="primary-button"
-                      onClick={() => openExplorer(selectedDatasource)}
-                      disabled={!explorerUnlocked}
-                    >
-                      Open explorer
-                    </button>
                   </div>
                 </>
               ) : (
-                <div className="mt-5 rounded-[22px] border border-white/8 bg-white/[0.03] p-4 text-sm text-zinc-400">
+                <div className="mt-5 flex-1 rounded-[22px] border border-white/8 bg-white/[0.03] p-4 text-center text-sm text-zinc-400">
                   Create or select a datasource to unlock testing and schema actions.
                 </div>
               )}

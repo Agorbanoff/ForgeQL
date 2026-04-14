@@ -69,8 +69,8 @@ export default function LoginPage() {
         'Access and refresh JWT cookies are created after a successful sign in.',
       ]}
       form={
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
+        <form className="space-y-3.5" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
             <label className="text-sm font-medium text-zinc-300">Email</label>
             <input
               value={email}
@@ -82,7 +82,7 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-sm font-medium text-zinc-300">Password</label>
             <input
               value={password}
@@ -109,7 +109,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="primary-button mt-2 w-full"
+            className="primary-button mt-1.5 w-full"
             data-pressable
             data-glow={!loading ? 'pulse' : undefined}
           >
@@ -120,7 +120,7 @@ export default function LoginPage() {
       footer={
         <p>
           No account yet?{' '}
-          <Link to="/signup" className="text-cyan-300" data-pressable>
+          <Link to="/signup" className="auth-footer-link" data-pressable>
             Create one here
           </Link>
           .

@@ -1481,12 +1481,12 @@ export default function PlaygroundPage() {
                     </div>
                   </div>
 
-                  <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px_180px]">
+                  <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(10rem,0.72fr)_minmax(10.5rem,0.82fr)]">
                     <div className="surface-card p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                         Columns shown
                       </p>
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
                         {getReadableColumns(currentTable).map((column) => {
                           const active = visibleColumns.includes(column.name)
 
@@ -1895,7 +1895,7 @@ export default function PlaygroundPage() {
                     <p className="mt-3 text-sm text-zinc-400">
                       Only the actions supported by this table are shown here.
                     </p>
-                    <div className="mt-5 flex flex-wrap gap-3">
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
                       {mutationModeOptions.map((option) => (
                         <button
                           key={option.value}

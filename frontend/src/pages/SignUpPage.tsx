@@ -85,8 +85,8 @@ export default function SignUpPage() {
         'Your email and password are carried into the next screen automatically.',
       ]}
       form={
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
+        <form className="space-y-3.5" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
             <label className="text-sm font-medium text-zinc-300">Username</label>
             <input
               value={username}
@@ -97,7 +97,7 @@ export default function SignUpPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-sm font-medium text-zinc-300">Email</label>
             <input
               value={email}
@@ -109,7 +109,7 @@ export default function SignUpPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-sm font-medium text-zinc-300">Password</label>
             <input
               value={password}
@@ -121,7 +121,7 @@ export default function SignUpPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-sm font-medium text-zinc-300">
               Confirm password
             </label>
@@ -144,7 +144,7 @@ export default function SignUpPage() {
           <button
             type="submit"
             disabled={loading}
-            className="primary-button mt-2 w-full"
+            className="primary-button mt-1.5 w-full"
             data-pressable
             data-glow={!loading ? 'pulse' : undefined}
           >
@@ -155,7 +155,7 @@ export default function SignUpPage() {
       footer={
         <p>
           Already have an account?{' '}
-          <Link to="/login" className="text-cyan-300" data-pressable>
+          <Link to="/login" className="auth-footer-link" data-pressable>
             Log in
           </Link>
           .

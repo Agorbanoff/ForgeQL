@@ -663,17 +663,18 @@ textarea {
   }
 
   .chip-toggle {
-    @apply inline-flex items-center justify-center rounded-full border text-xs font-medium transition;
-    width: 7.75rem;
+    @apply inline-flex items-center justify-center rounded-[1.15rem] border text-xs font-medium transition;
+    width: auto;
     min-height: 3rem;
-    padding: 0.4rem 0.75rem;
+    max-width: 100%;
+    padding: 0.55rem 0.95rem;
     border-color: rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.03);
     color: rgba(236, 240, 248, 0.82);
-    white-space: normal;
-    word-break: break-word;
+    white-space: nowrap;
+    word-break: normal;
     text-align: center;
-    line-height: 1.2;
+    line-height: 1.1;
   }
 
   .chip-toggle:hover {
@@ -689,12 +690,17 @@ textarea {
   }
 
   .mode-toggle {
-    min-width: 8.5rem;
+    width: 100%;
+    min-width: 0;
+    min-height: 5.5rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 20px;
     background: rgba(255, 255, 255, 0.03);
     padding: 0.9rem 1rem;
-    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
     color: var(--text-main);
     transition:
       border-color 180ms ease,
@@ -737,7 +743,30 @@ textarea {
     display: block;
     margin-top: 0.28rem;
     font-size: 0.74rem;
+    line-height: 1.35;
     color: rgba(165, 173, 191, 0.84);
+  }
+
+  .auth-footer-link {
+    font-weight: 700;
+    color: #ffd2a8;
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 176, 122, 0.75);
+    text-underline-offset: 0.16em;
+    transition:
+      color 180ms ease,
+      text-shadow 180ms ease,
+      text-decoration-color 180ms ease;
+  }
+
+  .auth-footer-link:hover,
+  .auth-footer-link:focus-visible {
+    color: #ffffff;
+    outline: none;
+    text-decoration-color: rgba(126, 230, 255, 0.95);
+    text-shadow:
+      0 0 20px rgba(255, 176, 122, 0.55),
+      0 0 8px rgba(126, 230, 255, 0.35);
   }
 
   .data-table {

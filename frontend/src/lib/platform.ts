@@ -88,7 +88,33 @@ export function getPrimaryKeyColumn(table: SchemaTable) {
 
 export function hasSingleNumericPrimaryKey(table: SchemaTable) {
   const primaryKeyColumn = getPrimaryKeyColumn(table)
-  return Boolean(primaryKeyColumn?.numericType)
+  if (!primaryKeyColumn) {
+    return false
+  }
+
+  if (primaryKeyColumn.numericType) {
+    return true
+  }
+
+  const postgresTypeName = (primaryKeyColumn.postgresTypeName ?? '').trim().toLowerCase()
+  const dbType = (primaryKeyColumn.dbType ?? '').trim().toLowerCase()
+  const javaType = (primaryKeyColumn.javaType ?? '').trim()
+
+  const numericPostgresTypes = new Set([
+    'int2',
+    'int4',
+    'int8',
+    'smallint',
+    'integer',
+    'bigint',
+  ])
+  const numericJavaTypes = new Set(['Short', 'Integer', 'Long'])
+
+  return (
+    numericPostgresTypes.has(postgresTypeName) ||
+    numericPostgresTypes.has(dbType) ||
+    numericJavaTypes.has(javaType)
+  )
 }
 
 export function getWritableColumns(table: SchemaTable) {

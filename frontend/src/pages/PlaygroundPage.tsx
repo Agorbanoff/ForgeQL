@@ -63,6 +63,7 @@ type FeedbackTone = 'success' | 'danger' | 'warning' | 'neutral'
 type Feedback = { tone: FeedbackTone; title: string; message: string }
 type ExplorerError = { title: string; message: string; detail?: string }
 type MutationMode = 'create' | 'update' | 'delete'
+type SelectedRow = { id: number; data: Record<string, unknown> }
 type FilterDraft = {
   id: number
   field: string
@@ -397,7 +398,7 @@ export default function PlaygroundPage() {
   const [rowsState, setRowsState] = useState<RowsResponse | null>(null)
   const [rowsLoading, setRowsLoading] = useState(false)
   const [rowsError, setRowsError] = useState<ExplorerError | null>(null)
-  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null)
+  const [selectedRow, setSelectedRow] = useState<SelectedRow | null>(null)
   const [createDraft, setCreateDraft] = useState<Record<string, string>>({})
   const [updateDraft, setUpdateDraft] = useState<Record<string, string>>({})
   const [aggregateSelections, setAggregateSelections] = useState<AggregateDraft[]>([
@@ -411,7 +412,7 @@ export default function PlaygroundPage() {
   const [accountDeleting, setAccountDeleting] = useState(false)
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false)
   const [pendingAccountDelete, setPendingAccountDelete] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<Record<string, unknown> | null>(
+  const [pendingDelete, setPendingDelete] = useState<SelectedRow | null>(
     null
   )
   const [mutationMode, setMutationMode] = useState<MutationMode>('create')
@@ -559,10 +560,11 @@ export default function PlaygroundPage() {
   )
 
   const currentRows = rowsState?.rows ?? []
-  const selectedRow =
-    selectedRowIndex == null ? null : (currentRows[selectedRowIndex] ?? null)
 
   const primaryKeyColumn = currentTable ? getPrimaryKeyColumn(currentTable) : null
+  const hasNumericPrimaryKey = Boolean(
+    currentTable && hasSingleNumericPrimaryKey(currentTable)
+  )
   const mutationSurfaceEnabled = Boolean(
     currentTable?.tableType === 'TABLE' &&
       currentTable.primaryKey &&
@@ -573,13 +575,13 @@ export default function PlaygroundPage() {
     currentTable?.capabilities.update &&
       currentTable &&
       mutationSurfaceEnabled &&
-      hasSingleNumericPrimaryKey(currentTable)
+      hasNumericPrimaryKey
   )
   const canDeleteRows = Boolean(
     currentTable?.capabilities.delete &&
       currentTable &&
       mutationSurfaceEnabled &&
-      hasSingleNumericPrimaryKey(currentTable)
+      hasNumericPrimaryKey
   )
   const mutationSupported = canCreate || canEditRows || canDeleteRows
   const mutationModeOptions = useMemo(
@@ -628,7 +630,7 @@ export default function PlaygroundPage() {
   function resetTableState() {
     setRowsState(null)
     setRowsError(null)
-    setSelectedRowIndex(null)
+    setSelectedRow(null)
     setVisibleColumns([])
     setFilters([])
     setLimit('25')
@@ -737,7 +739,7 @@ export default function PlaygroundPage() {
     setSortField('')
     setSortDirection('ASC')
     setOffset(0)
-    setSelectedRowIndex(null)
+    setSelectedRow(null)
     setCreateDraft(buildEmptyDraft(currentTable))
     setUpdateDraft(buildEmptyDraft(currentTable))
     setAggregateSelections([{ id: nextId(), fn: 'count', field: '', alias: 'row_count' }])
@@ -750,9 +752,24 @@ export default function PlaygroundPage() {
 
   useEffect(() => {
     if (currentTable && selectedRow) {
-      setUpdateDraft(buildDraftFromRow(currentTable, selectedRow))
+      setUpdateDraft(buildDraftFromRow(currentTable, selectedRow.data))
     }
   }, [currentTable, selectedRow])
+
+  useEffect(() => {
+    console.log('Selected row:', selectedRow)
+  }, [selectedRow])
+
+  useEffect(() => {
+    console.log('primaryKeyColumn:', primaryKeyColumn)
+    console.log('mutationSurfaceEnabled:', mutationSurfaceEnabled)
+    console.log('canEditRows:', canEditRows)
+    console.log('canDeleteRows:', canDeleteRows)
+    console.log(
+      'hasSingleNumericPrimaryKey(currentTable):',
+      currentTable ? hasSingleNumericPrimaryKey(currentTable) : false
+    )
+  }, [primaryKeyColumn, mutationSurfaceEnabled, canEditRows, canDeleteRows, currentTable])
 
   useEffect(() => {
     if (!mutationSupported) {
@@ -811,7 +828,7 @@ export default function PlaygroundPage() {
     try {
       setRowsLoading(true)
       setRowsError(null)
-      setSelectedRowIndex(null)
+      setSelectedRow(null)
 
       const filterPayload = buildFilterPayload(nextFilters, table)
       const result = await readRows(datasourceId, table.qualifiedName, {
@@ -973,7 +990,7 @@ export default function PlaygroundPage() {
 
     try {
       setMutating(true)
-      const primaryKeyValue = Number(selectedRow[primaryKeyColumn.name])
+      const primaryKeyValue = Number(selectedRow.id)
 
       if (Number.isNaN(primaryKeyValue)) {
         throw new Error('The selected row does not expose a numeric primary key.')
@@ -983,10 +1000,10 @@ export default function PlaygroundPage() {
         currentTable,
         updateDraft,
         'update',
-        selectedRow
+        selectedRow.data
       )
 
-      await updateRow(datasourceId, currentTable.qualifiedName, primaryKeyValue, {
+      await updateRow(datasourceId, currentTable.qualifiedName, selectedRow.id, {
         values,
       })
 
@@ -1016,6 +1033,7 @@ export default function PlaygroundPage() {
     if (
       !currentTable ||
       !pendingDelete ||
+      !selectedRow ||
       !primaryKeyColumn ||
       !Number.isInteger(datasourceId) ||
       datasourceId <= 0
@@ -1025,13 +1043,13 @@ export default function PlaygroundPage() {
 
     try {
       setMutating(true)
-      const primaryKeyValue = Number(pendingDelete[primaryKeyColumn.name])
+      const primaryKeyValue = Number(selectedRow.id)
 
       if (Number.isNaN(primaryKeyValue)) {
         throw new Error('The selected row does not expose a numeric primary key.')
       }
 
-      await deleteRow(datasourceId, currentTable.qualifiedName, primaryKeyValue)
+      await deleteRow(datasourceId, currentTable.qualifiedName, selectedRow.id)
 
       setFeedback({
         tone: 'success',
@@ -1039,7 +1057,7 @@ export default function PlaygroundPage() {
         message: `Deleted the record identified by ${primaryKeyColumn.name}=${primaryKeyValue}.`,
       })
       setPendingDelete(null)
-      setSelectedRowIndex(null)
+      setSelectedRow(null)
       await runReadQuery()
     } catch (error) {
       if (isAuthError(error)) {
@@ -1690,8 +1708,25 @@ export default function PlaygroundPage() {
                           {currentRows.map((row, index) => (
                             <tr
                               key={`${index}-${safeString(row[primaryKeyColumn?.name ?? index])}`}
-                              className={selectedRowIndex === index ? 'is-selected' : ''}
-                              onClick={() => setSelectedRowIndex(index)}
+                              className={
+                                selectedRow &&
+                                primaryKeyColumn &&
+                                Number(row[primaryKeyColumn.name]) === selectedRow.id
+                                  ? 'is-selected'
+                                  : ''
+                              }
+                              onClick={() => {
+                                if (!primaryKeyColumn) {
+                                  return
+                                }
+
+                                const rowId = Number(row[primaryKeyColumn.name])
+                                if (Number.isNaN(rowId)) {
+                                  return
+                                }
+
+                                setSelectedRow({ id: rowId, data: row })
+                              }}
                             >
                               {visibleTableColumns.map((column) => (
                                 <td key={column.name}>{formatCellValue(row[column.name])}</td>
@@ -1947,7 +1982,7 @@ export default function PlaygroundPage() {
                                 type="button"
                                 className="secondary-button mt-4 w-full"
                                 onClick={submitUpdate}
-                                disabled={mutating}
+                                disabled={mutating || !selectedRow}
                               >
                                 Update selected row
                               </button>
@@ -1977,7 +2012,7 @@ export default function PlaygroundPage() {
                                 type="button"
                                 className="secondary-button mt-4 w-full text-red-100"
                                 onClick={() => setPendingDelete(selectedRow)}
-                                disabled={mutating}
+                                disabled={mutating || !selectedRow}
                               >
                                 Delete selected row
                               </button>
@@ -2001,7 +2036,7 @@ export default function PlaygroundPage() {
               Confirm delete
             </p>
             <h2 className="mt-3 text-2xl font-semibold text-white">
-              Delete row {safeString(pendingDelete[primaryKeyColumn.name])}?
+              Delete row {safeString(pendingDelete.id)}?
             </h2>
             <p className="mt-4 text-sm leading-6 text-zinc-300">
               This action removes a single row identified by the primary key. Bulk

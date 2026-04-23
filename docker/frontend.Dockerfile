@@ -14,9 +14,10 @@ COPY src ./src
 
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM nginx:alpine
 
-RUN rm /etc/nginx/conf.d/default.conf \
+RUN mkdir -p /etc/nginx/templates /usr/share/nginx/html \
+    && rm -f /etc/nginx/conf.d/default.conf \
     && printf '%s\n' \
     'server {' \
     '    listen 80;' \

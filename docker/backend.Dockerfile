@@ -17,6 +17,7 @@ RUN apk add --no-cache wget \
 COPY --from=build /workspace/target/ForgeQL-*.jar /app/app.jar
 
 USER forgeql
+
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "java ${JAVA_OPTS:-} -jar /app/app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

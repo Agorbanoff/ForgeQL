@@ -317,7 +317,7 @@ public class DataSourceService {
 
     @Transactional
     public void deleteDataSource(Integer id, Integer userId) {
-        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getManageableDatasource(userId, id);
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getAdministrableDatasource(userId, id);
 
         dataSourceAccessRepository.deleteAllByDataSource_Id(id);
         dataSourceAccessRepository.flush();
@@ -326,7 +326,7 @@ public class DataSourceService {
     }
 
     public void updateDataSource(UpdateDataSourceDTO updateDataSourceDTO, Integer userId, Integer id) {
-        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getManageableDatasource(userId, id);
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getAdministrableDatasource(userId, id);
 
         NormalizedConnectionDefinition connectionDefinition = normalizeUpdateRequest(updateDataSourceDTO);
 

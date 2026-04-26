@@ -7,18 +7,21 @@ export function useUserManagement(enabled: boolean) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savingUserId, setSavingUserId] = useState<number | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     if (!enabled) {
       setUsers([])
       setLoading(false)
       setError(null)
+      setActionError(null)
       return
     }
 
     try {
       setLoading(true)
       setError(null)
+      setActionError(null)
       setUsers(await getAdminUsers())
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not load users.')
@@ -35,8 +38,13 @@ export function useUserManagement(enabled: boolean) {
     async (userId: number, globalRole: GlobalRole) => {
       try {
         setSavingUserId(userId)
+        setActionError(null)
         await updateUserRole(userId, globalRole)
         await reload()
+      } catch (error) {
+        setActionError(
+          error instanceof Error ? error.message : 'Updating user role failed.'
+        )
       } finally {
         setSavingUserId(null)
       }
@@ -51,5 +59,6 @@ export function useUserManagement(enabled: boolean) {
     reload,
     saveRole,
     savingUserId,
+    actionError,
   }
 }

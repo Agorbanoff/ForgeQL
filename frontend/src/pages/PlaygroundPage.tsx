@@ -53,6 +53,7 @@ import type {
   AggregateResponse,
   DatasourceRecord,
   FilterOperator,
+  GlobalRole,
   RowsResponse,
   SchemaSummary,
   SchemaTable,
@@ -101,6 +102,25 @@ const TABLE_CAPABILITIES = [
   { key: 'update', label: 'Update' },
   { key: 'delete', label: 'Delete' },
 ] as const
+
+function isAdminRole(role?: GlobalRole | null) {
+  return role === 'ADMIN' || role === 'MAIN_ADMIN'
+}
+
+function canManageDatasource(
+  globalRole: GlobalRole | undefined,
+  datasource: DatasourceRecord | null
+) {
+  if (!datasource) {
+    return false
+  }
+
+  if (isAdminRole(globalRole)) {
+    return true
+  }
+
+  return globalRole === 'MEMBER' && datasource.accessRole === 'MANAGER'
+}
 
 function feedbackClass(tone: FeedbackTone) {
   switch (tone) {
@@ -583,7 +603,9 @@ export default function PlaygroundPage() {
       mutationSurfaceEnabled &&
       hasNumericPrimaryKey
   )
-  const mutationSupported = canCreate || canEditRows || canDeleteRows
+  const canManageCurrentDatasource = canManageDatasource(user?.globalRole, datasource)
+  const mutationSupported =
+    canManageCurrentDatasource && (canCreate || canEditRows || canDeleteRows)
   const mutationModeOptions = useMemo(
     () => [
       {
@@ -660,6 +682,12 @@ export default function PlaygroundPage() {
 
     try {
       setWorkspaceLoading(true)
+      setSchemaSummary(null)
+      setTables([])
+      setRowsState(null)
+      setRowsError(null)
+      setAggregateResult(null)
+      setAggregateError(null)
       const nextDatasource = await getDataSource(datasourceId)
       setDatasource(nextDatasource)
       storeSelectedDatasource(toStoredSelection(nextDatasource))
@@ -1205,9 +1233,9 @@ export default function PlaygroundPage() {
                 Explore live tables and rows.
               </h1>
               <p className="display-copy mt-4 max-w-3xl text-sm sm:text-base">
-                Focus on the datasource, choose the tables that matter, then browse
-                rows, run aggregates, and make row-level changes where the schema
-                allows it.
+                {canManageCurrentDatasource
+                  ? 'Focus on the datasource, choose the tables that matter, then browse rows, run aggregates, and make row-level changes where the schema allows it.'
+                  : 'Focus on the datasource, choose the tables that matter, then browse rows and run aggregates in a read-only workspace.'}
               </p>
             </div>
             <div className="grid gap-3 xl:max-w-[17rem]">

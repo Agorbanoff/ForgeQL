@@ -4,12 +4,20 @@ import { createPortal } from 'react-dom'
 type Props = {
   open: boolean
   title: string
+  label?: string
   description?: string
   onClose: () => void
   children: ReactNode
 }
 
-export function Modal({ open, title, description, onClose, children }: Props) {
+export function Modal({
+  open,
+  title,
+  label = 'Manage access',
+  description,
+  onClose,
+  children,
+}: Props) {
   useEffect(() => {
     if (!open) {
       return
@@ -30,13 +38,14 @@ export function Modal({ open, title, description, onClose, children }: Props) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-md">
-      <div className="surface-panel w-full max-w-5xl px-6 py-6 sm:px-8">
+    <div className="fixed inset-0 z-[140] overflow-y-auto bg-slate-950/80 px-4 py-6 backdrop-blur-md">
+      <div className="flex min-h-full items-start justify-center">
+        <div className="surface-panel w-full max-w-5xl px-6 py-6 sm:px-8">
         <div className="relative z-10">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                Manage access
+                {label}
               </p>
               <h2 className="mt-3 text-3xl font-semibold text-white">{title}</h2>
               {description ? (
@@ -51,11 +60,14 @@ export function Modal({ open, title, description, onClose, children }: Props) {
               onClick={onClose}
               aria-label="Close modal"
             >
-              ×
+              x
             </button>
           </div>
-          <div className="mt-6">{children}</div>
+          <div className="mt-6 max-h-[calc(100vh-10rem)] overflow-y-auto pr-1">
+            {children}
+          </div>
         </div>
+      </div>
       </div>
     </div>,
     document.body

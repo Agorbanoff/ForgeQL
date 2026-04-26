@@ -27,15 +27,18 @@ export function useDatasourceAccessManagement(
   })
   const [busyUserId, setBusyUserId] = useState<number | null>(null)
   const [assigning, setAssigning] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     if (!datasourceId || !enabled) {
       setState({ records: [], loading: false, error: null })
+      setActionError(null)
       return
     }
 
     try {
       setState((current) => ({ ...current, loading: true, error: null }))
+      setActionError(null)
       const records = await getDatasourceAccessList(datasourceId)
       setState({ records, loading: false, error: null })
     } catch (error) {
@@ -62,8 +65,15 @@ export function useDatasourceAccessManagement(
 
       try {
         setBusyUserId(userId)
+        setActionError(null)
         await updateDatasourceAccess(datasourceId, userId, { accessRole })
         await reload()
+      } catch (error) {
+        setActionError(
+          error instanceof Error
+            ? error.message
+            : 'Updating datasource access failed.'
+        )
       } finally {
         setBusyUserId(null)
       }
@@ -79,8 +89,15 @@ export function useDatasourceAccessManagement(
 
       try {
         setBusyUserId(userId)
+        setActionError(null)
         await deleteDatasourceAccess(datasourceId, userId)
         await reload()
+      } catch (error) {
+        setActionError(
+          error instanceof Error
+            ? error.message
+            : 'Removing datasource access failed.'
+        )
       } finally {
         setBusyUserId(null)
       }
@@ -96,8 +113,16 @@ export function useDatasourceAccessManagement(
 
       try {
         setAssigning(true)
+        setActionError(null)
         await assignDatasourceAccess(datasourceId, { userId, accessRole })
         await reload()
+      } catch (error) {
+        setActionError(
+          error instanceof Error
+            ? error.message
+            : 'Assigning datasource access failed.'
+        )
+        throw error
       } finally {
         setAssigning(false)
       }
@@ -115,5 +140,6 @@ export function useDatasourceAccessManagement(
     assignAccess,
     busyUserId,
     assigning,
+    actionError,
   }
 }

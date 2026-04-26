@@ -1,5 +1,5 @@
 export type DatabaseType = 'POSTGRESQL'
-export type GlobalRole = 'ADMIN' | 'MEMBER' | 'VIEWER'
+export type GlobalRole = 'MAIN_ADMIN' | 'ADMIN' | 'MEMBER' | 'VIEWER'
 export type DatasourceAccessRole = 'MANAGER' | 'VIEWER'
 
 export type SslMode =
@@ -47,7 +47,7 @@ export type DatasourcePayload = {
   databaseName: string
   schemaName: string
   username: string
-  password: string
+  password: string | null
   sslMode: SslMode
   connectTimeoutMs?: number | null
   socketTimeoutMs?: number | null
@@ -88,6 +88,7 @@ export type DatasourceAccessRecord = {
   userId: number
   username: string
   email: string
+  globalRole: GlobalRole
   accessRole: DatasourceAccessRole
   createdAt: string
 }

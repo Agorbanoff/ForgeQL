@@ -46,14 +46,17 @@ export function DatasourceAccessModal({
     assignAccess,
     busyUserId,
     assigning,
+    actionError,
   } = useDatasourceAccessManagement(datasource?.id ?? null, open)
 
   const rows = useMemo(
     () =>
-      accessList.map((record) => ({
-        ...record,
-        selectedRole: draftRoles[record.userId] ?? record.accessRole,
-      })),
+      accessList
+        .filter((record) => record.globalRole !== 'MAIN_ADMIN')
+        .map((record) => ({
+          ...record,
+          selectedRole: draftRoles[record.userId] ?? record.accessRole,
+        })),
     [accessList, draftRoles]
   )
 
@@ -90,6 +93,12 @@ export function DatasourceAccessModal({
           {error ? (
             <div className="rounded-[20px] border border-red-400/20 bg-red-500/10 p-4 text-sm text-red-100">
               {error}
+            </div>
+          ) : null}
+
+          {actionError ? (
+            <div className="rounded-[20px] border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+              {actionError}
             </div>
           ) : null}
 
@@ -176,6 +185,9 @@ export function DatasourceAccessModal({
             <p className="mt-3 text-sm leading-6 text-zinc-300">
               Use a numeric user id from the admin user directory, then choose the
               datasource role to apply.
+            </p>
+            <p className="mt-3 text-xs leading-6 text-amber-100/85">
+              Admin and main admin accounts do not receive datasource-level access.
             </p>
 
             <div className="mt-5 space-y-4">

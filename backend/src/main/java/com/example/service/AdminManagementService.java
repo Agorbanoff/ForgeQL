@@ -117,6 +117,7 @@ public class AdminManagementService {
 
         return userAccountRepository.findAllByOrderByUsernameAsc()
                 .stream()
+                .filter(user -> user.getGlobalRole() != GlobalRole.MAIN_ADMIN)
                 .map(user -> new AdminUserDTO(
                         user.getId(),
                         user.getUsername(),
@@ -143,6 +144,7 @@ public class AdminManagementService {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
+                user.getGlobalRole(),
                 accessEntity.getAccessRole(),
                 accessEntity.getCreatedAt()
         );
@@ -215,7 +217,7 @@ public class AdminManagementService {
         if (actor.getGlobalRole() == GlobalRole.MAIN_ADMIN) {
             return;
         }
-        if (actor.getGlobalRole() == GlobalRole.ADMIN && isDatasourceOwner(actor.getId(), dataSource)) {
+        if (actor.getGlobalRole() == GlobalRole.ADMIN) {
             return;
         }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useUserManagement } from '../../hooks/useUserManagement'
 import type { GlobalRole } from '../../types/platform'
 import { Dropdown } from '../ui/Dropdown'
@@ -24,10 +24,25 @@ const ROLE_OPTIONS = [
   },
 ] as const
 
-export function UserManagementPanel({ enabled }: { enabled: boolean }) {
+export function UserManagementPanel({
+  enabled,
+  actorRole,
+}: {
+  enabled: boolean
+  actorRole?: GlobalRole | null
+}) {
   const [draftRoles, setDraftRoles] = useState<Record<number, GlobalRole>>({})
-  const { users, loading, error, saveRole, savingUserId, reload } =
+  const { users, loading, error, saveRole, savingUserId, reload, actionError } =
     useUserManagement(enabled)
+  const visibleUsers = users.filter((user) => user.globalRole !== 'MAIN_ADMIN')
+  const actorIsMainAdmin = actorRole === 'MAIN_ADMIN'
+  const adminRoleHint = useMemo(
+    () =>
+      actorIsMainAdmin
+        ? null
+        : 'Only the main admin can change the role of another admin.',
+    [actorIsMainAdmin]
+  )
 
   if (!enabled) {
     return null
@@ -59,9 +74,15 @@ export function UserManagementPanel({ enabled }: { enabled: boolean }) {
           </div>
         ) : null}
 
+        {actionError ? (
+          <div className="mt-5 rounded-[20px] border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+            {actionError}
+          </div>
+        ) : null}
+
         <div className="mt-6">
           <Table
-            rows={users.map((user) => ({
+            rows={visibleUsers.map((user) => ({
               ...user,
               selectedRole: draftRoles[user.id] ?? user.globalRole,
             }))}
@@ -90,38 +111,54 @@ export function UserManagementPanel({ enabled }: { enabled: boolean }) {
               {
                 key: 'new-role',
                 header: 'Global role',
-                render: (user) => (
-                  <Dropdown
-                    ariaLabel={`Global role for ${user.username}`}
-                    value={user.selectedRole}
-                    options={ROLE_OPTIONS}
-                    onChange={(value) =>
-                      setDraftRoles((current) => ({
-                        ...current,
-                        [user.id]: value as GlobalRole,
-                      }))
-                    }
-                    disabled={savingUserId === user.id}
-                  />
-                ),
+                render: (user) => {
+                  const adminProtected =
+                    !actorIsMainAdmin && user.globalRole === 'ADMIN'
+
+                  return (
+                    <div className="space-y-2">
+                      <Dropdown
+                        ariaLabel={`Global role for ${user.username}`}
+                        value={user.selectedRole}
+                        options={ROLE_OPTIONS}
+                        onChange={(value) =>
+                          setDraftRoles((current) => ({
+                            ...current,
+                            [user.id]: value as GlobalRole,
+                          }))
+                        }
+                        disabled={savingUserId === user.id || adminProtected}
+                      />
+                      {adminProtected && adminRoleHint ? (
+                        <p className="text-xs text-amber-200/90">{adminRoleHint}</p>
+                      ) : null}
+                    </div>
+                  )
+                },
               },
               {
                 key: 'actions',
                 header: 'Actions',
                 className: 'w-[11rem]',
-                render: (user) => (
-                  <Button
-                    variant="primary"
-                    className="px-4 py-2"
-                    disabled={
-                      savingUserId === user.id ||
-                      user.selectedRole === user.globalRole
-                    }
-                    onClick={() => void saveRole(user.id, user.selectedRole)}
-                  >
-                    {savingUserId === user.id ? 'Saving...' : 'Save'}
-                  </Button>
-                ),
+                render: (user) => {
+                  const adminProtected =
+                    !actorIsMainAdmin && user.globalRole === 'ADMIN'
+
+                  return (
+                    <Button
+                      variant="primary"
+                      className="px-4 py-2"
+                      disabled={
+                        adminProtected ||
+                        savingUserId === user.id ||
+                        user.selectedRole === user.globalRole
+                      }
+                      onClick={() => void saveRole(user.id, user.selectedRole)}
+                    >
+                      {savingUserId === user.id ? 'Saving...' : 'Save'}
+                    </Button>
+                  )
+                },
               },
             ]}
           />

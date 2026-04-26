@@ -19,22 +19,24 @@ export function useDatasources(currentUserRole?: GlobalRole) {
       setError(null)
       const nextDatasources = await getDatasources()
       setDatasources(sortDatasources(nextDatasources))
+      return nextDatasources
     } catch (error) {
       setError(
         error instanceof Error ? error.message : 'Could not load datasources.'
       )
+      throw error
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    void reload()
+    void reload().catch(() => undefined)
   }, [reload])
 
   const summary = useMemo(() => {
     const manageableCount = datasources.filter((datasource) => {
-      if (currentUserRole === 'ADMIN') {
+      if (currentUserRole === 'ADMIN' || currentUserRole === 'MAIN_ADMIN') {
         return true
       }
 

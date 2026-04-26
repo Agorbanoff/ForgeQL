@@ -47,7 +47,7 @@ public class SchemaGenerationService {
 
     @Transactional
     public GeneratedSchema generate(Integer datasourceId, Integer userId) {
-        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getManageableDatasource(userId, datasourceId);
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getViewableDatasource(userId, datasourceId);
 
         PostgresRuntimeConnectionDefinition definition = runtimeConnectionResolver.resolve(dataSourceEntity);
         PostgresIntrospectionResult introspectionResult = metadataIntrospector.introspect(definition);

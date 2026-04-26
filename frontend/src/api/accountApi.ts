@@ -1,4 +1,4 @@
-import { apiFetch, buildApiRequestError, initializeRequestSecurity } from './http'
+import { apiFetch, buildApiRequestError } from './http'
 import type { GlobalRole } from '../types/platform'
 
 export type SignUpPayload = {
@@ -54,8 +54,6 @@ export async function logInUser(payload: LogInPayload): Promise<void> {
   if (!response.ok) {
     throw await buildApiRequestError(response, 'Log in failed')
   }
-
-  await initializeRequestSecurity()
 }
 
 export async function logOutUser(): Promise<void> {

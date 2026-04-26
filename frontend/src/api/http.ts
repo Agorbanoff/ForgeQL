@@ -1,14 +1,7 @@
 const rawBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 const API_BASE_URL = (rawBaseUrl || '/api').replace(/\/$/, '')
-const CSRF_COOKIE_NAME = 'XSRF-TOKEN'
-const CSRF_HEADER_NAME = 'X-XSRF-TOKEN'
+
 export const AUTH_REQUIRED_EVENT = 'forgeql:auth-required'
-const CSRF_EXEMPT_PATHS = new Set([
-  '/account/signup',
-  '/account/login',
-  '/account/logout',
-  '/token/refresh',
-])
 
 type RequestOptions = RequestInit & {
   retryOnUnauthorized?: boolean
@@ -46,10 +39,8 @@ export class ApiRequestError extends Error {
 
 async function refreshAccessToken() {
   try {
-    const headers = await buildRequestHeaders('/token/refresh', { method: 'POST' })
     const response = await fetch(`${API_BASE_URL}/token/refresh`, {
       method: 'POST',
-      headers,
       credentials: 'include',
     })
 
@@ -59,79 +50,8 @@ async function refreshAccessToken() {
   }
 }
 
-function getCookie(name: string): string | null {
-  const encodedName = `${encodeURIComponent(name)}=`
-  const parts = document.cookie.split(';')
-
-  for (const part of parts) {
-    const trimmed = part.trim()
-    if (trimmed.startsWith(encodedName)) {
-      return decodeURIComponent(trimmed.slice(encodedName.length))
-    }
-  }
-
-  return null
-}
-
-function isMutatingMethod(method?: string) {
-  const normalized = (method ?? 'GET').toUpperCase()
-  return !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(normalized)
-}
-
-function isAccessDeniedError(body: ApiErrorShape | string | null) {
-  if (!body || typeof body === 'string') {
-    return false
-  }
-
-  return body.status === 403 || body.code === 'ACCESS_DENIED'
-}
-
-async function fetchCsrfToken() {
-  const response = await fetch(`${API_BASE_URL}/account/csrf`, {
-    method: 'GET',
-    credentials: 'include',
-  })
-
-  return response.ok
-}
-
 export async function initializeRequestSecurity() {
-  await ensureCsrfToken()
-}
-
-async function ensureCsrfToken() {
-  if (getCookie(CSRF_COOKIE_NAME)) {
-    return
-  }
-
-  const loaded = await fetchCsrfToken()
-  if (!loaded || !getCookie(CSRF_COOKIE_NAME)) {
-    throw new Error('Could not initialize request security.')
-  }
-}
-
-async function buildRequestHeaders(
-  path: string,
-  options: Pick<RequestOptions, 'headers' | 'method'>
-) {
-  const headers = new Headers(options.headers ?? {})
-
-  if (
-    path !== '/account/csrf' &&
-    !CSRF_EXEMPT_PATHS.has(path) &&
-    isMutatingMethod(options.method)
-  ) {
-    await ensureCsrfToken()
-    const csrfToken = getCookie(CSRF_COOKIE_NAME)
-
-    if (!csrfToken) {
-      throw new Error('Could not initialize request security.')
-    }
-
-    headers.set(CSRF_HEADER_NAME, csrfToken)
-  }
-
-  return headers
+  return
 }
 
 export async function parseResponseBody<T = unknown>(
@@ -205,33 +125,16 @@ export async function apiFetch(
   path: string,
   options: RequestOptions = {}
 ): Promise<Response> {
-  const { retryOnUnauthorized = true, headers, ...rest } = options
-  let requestHeaders: Headers
-
-  try {
-    requestHeaders = await buildRequestHeaders(path, {
-      headers,
-      method: rest.method,
-    })
-  } catch (error) {
-    if (error instanceof ApiRequestError) {
-      throw error
-    }
-
-    throw new ApiRequestError(
-      error instanceof Error ? error.message : 'Could not prepare the request.'
-    )
-  }
+  const { retryOnUnauthorized = true, ...rest } = options
 
   let response: Response
 
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...rest,
-      headers: requestHeaders,
       credentials: 'include',
     })
-  } catch (error) {
+  } catch {
     throw new ApiRequestError(
       'Cannot reach the backend. Check that the API server is running and that the frontend proxy or API base URL is correct.'
     )
@@ -245,17 +148,11 @@ export async function apiFetch(
       throw await buildApiRequestError(response, 'Authentication is required')
     }
 
-    const retryHeaders = await buildRequestHeaders(path, {
-      headers,
-      method: rest.method,
-    })
-
     let retryResponse: Response
 
     try {
       retryResponse = await fetch(`${API_BASE_URL}${path}`, {
         ...rest,
-        headers: retryHeaders,
         credentials: 'include',
       })
     } catch {
@@ -270,31 +167,6 @@ export async function apiFetch(
     }
 
     return retryResponse
-  }
-
-  if (response.status === 403 && isMutatingMethod(rest.method)) {
-    const errorBody = await parseResponseBody<ApiErrorShape>(response.clone())
-
-    if (isAccessDeniedError(errorBody)) {
-      await fetchCsrfToken()
-
-      const retryHeaders = await buildRequestHeaders(path, {
-        headers,
-        method: rest.method,
-      })
-
-      try {
-        return await fetch(`${API_BASE_URL}${path}`, {
-          ...rest,
-          headers: retryHeaders,
-          credentials: 'include',
-        })
-      } catch {
-        throw new ApiRequestError(
-          'Cannot reach the backend. Check that the API server is running and that the frontend proxy or API base URL is correct.'
-        )
-      }
-    }
   }
 
   return response

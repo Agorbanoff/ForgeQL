@@ -35,6 +35,7 @@ export function AnimatedSelect({
     top: number
     left: number
     width: number
+    maxHeight: number
   } | null>(null)
 
   useEffect(() => {
@@ -48,10 +49,26 @@ export function AnimatedSelect({
       }
 
       const rect = triggerRef.current.getBoundingClientRect()
+      const viewportHeight = window.innerHeight
+      const spaceAbove = rect.top - 24
+      const spaceBelow = viewportHeight - rect.bottom - 24
+      const estimatedMenuHeight = Math.min(
+        Math.max(options.length * 68, 120),
+        320
+      )
+      const shouldOpenUpward =
+        spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow
+      const maxHeight = Math.max(
+        120,
+        Math.min(320, shouldOpenUpward ? spaceAbove : spaceBelow)
+      )
       setMenuStyle({
-        top: rect.bottom + 12,
+        top: shouldOpenUpward
+          ? Math.max(24, rect.top - maxHeight - 12)
+          : rect.bottom + 12,
         left: rect.left,
         width: rect.width,
+        maxHeight,
       })
     }
 
@@ -132,6 +149,7 @@ export function AnimatedSelect({
                 top: `${menuStyle.top}px`,
                 left: `${menuStyle.left}px`,
                 width: `${menuStyle.width}px`,
+                maxHeight: `${menuStyle.maxHeight}px`,
               }}
             >
               {options.map((option) => {

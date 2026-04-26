@@ -49,7 +49,7 @@ public class DataSourceAuthorizationService {
     }
 
     public void assertCanCreateDatasource(UserAccountEntity user) {
-        if (user == null || user.getGlobalRole() == GlobalRole.VIEWER) {
+        if (user == null || user.getGlobalRole() != GlobalRole.MAIN_ADMIN) {
             throw new ForbiddenException("You do not have permission to create datasources");
         }
     }
@@ -78,6 +78,19 @@ public class DataSourceAuthorizationService {
         }
 
         throw new ForbiddenException("You do not have permission to manage this datasource");
+    }
+
+    public DataSourceEntity getAdministrableDatasource(Integer userId, Integer datasourceId) {
+        return getAdministrableDatasource(getRequiredUser(userId), datasourceId);
+    }
+
+    public DataSourceEntity getAdministrableDatasource(UserAccountEntity user, Integer datasourceId) {
+        DataSourceEntity dataSource = getExistingDatasource(datasourceId);
+        if (user != null && user.getGlobalRole() == GlobalRole.MAIN_ADMIN) {
+            return dataSource;
+        }
+
+        throw new ForbiddenException("You do not have permission to administer this datasource");
     }
 
     public List<DataSourceEntity> getReadableDatasources(Integer userId) {

@@ -56,7 +56,7 @@ public class AggregateQueryService {
         AggregateAst aggregateAst = aggregateQueryAstBuilder.build(resolvedTableIdentifier.qualifiedName(), request);
         AggregateExecutionPlan executionPlan = aggregateQueryPlanner.plan(datasourceId, userId, aggregateAst);
         SqlCommand sqlCommand = aggregateSqlBuilder.build(executionPlan);
-        PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(datasourceId, userId);
+        PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(datasourceId);
         return aggregateExecutor.execute(connectionDefinition, sqlCommand);
     }
 }

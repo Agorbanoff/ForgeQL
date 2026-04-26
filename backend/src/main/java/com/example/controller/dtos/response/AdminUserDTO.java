@@ -2,10 +2,13 @@ package com.example.controller.dtos.response;
 
 import com.example.persistence.Enums.GlobalRole;
 
-public record CurrentUserDTO(
+import java.time.Instant;
+
+public record AdminUserDTO(
         Integer id,
-        String email,
         String username,
-        GlobalRole globalRole
+        String email,
+        GlobalRole globalRole,
+        Instant createdAt
 ) {
 }

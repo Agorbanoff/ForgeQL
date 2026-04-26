@@ -11,7 +11,10 @@ import java.util.Optional;
 @Repository
 public interface DataSourceRepository extends JpaRepository<DataSourceEntity, Integer> {
     Optional<DataSourceEntity> findByIdAndUserAccount_Id(Integer id, Integer userId);
+    List<DataSourceEntity> findAllByOrderByDisplayNameAsc();
     List<DataSourceEntity> findAllByUserAccount_Id(Integer userId);
+    void deleteAllByUserAccount_Id(Integer userId);
+    List<DataSourceEntity> findDistinctByDataSourceAccesses_User_IdOrderByDisplayNameAsc(Integer accessUserId);
     boolean existsByUserAccount_IdAndDbTypeAndHostAndPortAndDatabaseNameAndSchemaNameAndUsername(
             Integer userId,
             DatabaseTypes dbType,

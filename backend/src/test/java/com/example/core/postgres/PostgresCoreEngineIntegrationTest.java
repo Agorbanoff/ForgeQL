@@ -3,7 +3,6 @@ package com.example.core.postgres;
 import com.example.auth.filter.AuthenticatedUser;
 import com.example.common.ApplicationErrorCode;
 import com.example.common.exceptions.PostgresTargetMismatchException;
-import com.example.common.exceptions.UnsupportedMutationTargetException;
 import com.example.core.postgres.aggregate.AggregateFunction;
 import com.example.core.postgres.api.dto.request.AggregateRequest;
 import com.example.core.postgres.api.dto.request.AggregateSelectionRequest;
@@ -163,8 +162,8 @@ class PostgresCoreEngineIntegrationTest {
     }
 
     @Test
-    void datasourceConnectionUsesTheRealPostgresRuntimePath() {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+    void datasourceConnectionUsesTheConfiguredRuntimeDatasource() {
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
 
         PostgresConnectionTestResult result = postgresConnectionTestService.test(
                 fixture.datasourceId(),
@@ -191,47 +190,38 @@ class PostgresCoreEngineIntegrationTest {
     }
 
     @Test
-    void schemaGenerationDiscoversTablesViewsMaterializedViewsAndConstraints() {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+    void schemaGenerationDiscoversOnlyRuntimeUsersAndOrders() {
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
 
-        GeneratedSchema schema = generateSchema(fixture);
+        GeneratedSchema schema = generateRuntimeSchema(fixture);
         List<SchemaTable> tables = schemaReadService.getTables(fixture.datasourceId(), fixture.userId());
 
         assertThat(schema.defaultSchema()).isEqualTo(RUNTIME_SCHEMA);
         assertThat(schema.fingerprint()).isNotBlank();
         assertThat(tables).extracting(SchemaTable::qualifiedName)
-                .contains(
-                        "runtime_suite.audit_log",
-                        "runtime_suite.customers",
-                        "runtime_suite.customer_order_totals",
-                        "runtime_suite.order_items",
-                        "runtime_suite.order_summaries",
-                        "runtime_suite.orders"
-                );
+                .containsExactlyInAnyOrder("runtime_suite.orders", "runtime_suite.users");
 
-        SchemaTable customers = schema.tables().get("runtime_suite.customers");
+        SchemaTable users = schema.tables().get("runtime_suite.users");
         SchemaTable orders = schema.tables().get("runtime_suite.orders");
-        SchemaTable summaries = schema.tables().get("runtime_suite.order_summaries");
-        SchemaTable materialized = schema.tables().get("runtime_suite.customer_order_totals");
 
-        assertThat(customers.primaryKey().columns()).containsExactly("id");
-        assertThat(customers.uniqueConstraints())
+        assertThat(users.primaryKey().columns()).containsExactly("id");
+        assertThat(users.uniqueConstraints())
                 .anySatisfy(constraint -> assertThat(constraint.columns()).containsExactly("email"));
         assertThat(orders.foreignKeys())
                 .anySatisfy(foreignKey -> {
                     assertThat(foreignKey.sourceQualifiedName()).isEqualTo("runtime_suite.orders");
-                    assertThat(foreignKey.targetQualifiedName()).isEqualTo("runtime_suite.customers");
-                    assertThat(foreignKey.sourceColumns()).containsExactly("customer_id");
+                    assertThat(foreignKey.targetQualifiedName()).isEqualTo("runtime_suite.users");
+                    assertThat(foreignKey.sourceColumns()).containsExactly("user_id");
                     assertThat(foreignKey.targetColumns()).containsExactly("id");
                 });
-        assertThat(summaries.tableType()).isEqualTo(SchemaTableType.VIEW);
-        assertThat(materialized.tableType()).isEqualTo(SchemaTableType.MATERIALIZED_VIEW);
+        assertThat(users.tableType()).isEqualTo(SchemaTableType.TABLE);
+        assertThat(orders.tableType()).isEqualTo(SchemaTableType.TABLE);
     }
 
     @Test
-    void schemaReadExposesColumnsRelationsAndWritableCapabilities() {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
+    void schemaReadExposesOrderColumnsRelationsAndMutationCapabilities() {
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+        generateRuntimeSchema(fixture);
 
         SchemaTable orders = schemaReadService.getTable(fixture.datasourceId(), fixture.userId(), "runtime_suite.orders");
         List<SchemaColumn> columns = schemaReadService.getTableColumns(
@@ -253,7 +243,7 @@ class PostgresCoreEngineIntegrationTest {
 
         assertThat(columns)
                 .extracting(SchemaColumn::name)
-                .containsExactly("id", "customer_id", "status", "amount", "note", "tags", "created_at", "updated_at");
+                .containsExactly("id", "user_id", "status", "amount", "note", "tags", "created_at", "updated_at");
 
         SchemaColumn status = findColumn(columns, "status");
         SchemaColumn amount = findColumn(columns, "amount");
@@ -273,21 +263,21 @@ class PostgresCoreEngineIntegrationTest {
         assertThat(relations)
                 .anySatisfy(relation -> {
                     assertThat(relation.sourceQualifiedName()).isEqualTo("runtime_suite.orders");
-                    assertThat(relation.targetQualifiedName()).isEqualTo("runtime_suite.customers");
-                    assertThat(relation.sourceColumns()).containsExactly("customer_id");
+                    assertThat(relation.targetQualifiedName()).isEqualTo("runtime_suite.users");
+                    assertThat(relation.sourceColumns()).containsExactly("user_id");
                     assertThat(relation.targetColumns()).containsExactly("id");
                 });
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("readFilterScenarios")
-    void readExplorationSupportsFilterOperators(
+    void readRowsSupportsFilterOperatorsAgainstRuntimeOrders(
             String description,
             Map<String, ReadFieldFilterRequest> filter,
             List<Long> expectedIds
     ) {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+        generateRuntimeSchema(fixture);
 
         RowsResponse response = readRowsService.readRows(
                 fixture.datasourceId(),
@@ -309,9 +299,9 @@ class PostgresCoreEngineIntegrationTest {
     }
 
     @Test
-    void readExplorationSupportsProjectionSortingAndPagination() {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
+    void readRowsSupportsProjectionSortingAndPagination() {
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+        generateRuntimeSchema(fixture);
 
         RowsResponse response = readRowsService.readRows(
                 fixture.datasourceId(),
@@ -337,9 +327,9 @@ class PostgresCoreEngineIntegrationTest {
     }
 
     @Test
-    void aggregateQueriesReturnGroupedRollups() {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
+    void aggregateQueriesReturnGroupedRollupsForRuntimeOrders() {
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+        generateRuntimeSchema(fixture);
 
         AggregateResponse response = aggregateQueryService.aggregate(
                 fixture.datasourceId(),
@@ -351,7 +341,7 @@ class PostgresCoreEngineIntegrationTest {
                                 new AggregateSelectionRequest(AggregateFunction.SUM, "amount", "total_amount")
                         ),
                         List.of("status"),
-                        Map.of("customer_id", inFilter(1, 3))
+                        Map.of("user_id", inFilter(1, 3))
                 )
         );
 
@@ -370,16 +360,16 @@ class PostgresCoreEngineIntegrationTest {
     }
 
     @Test
-    void insertUpdateAndDeleteUseTheActiveMutationRuntimePath() {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
+    void insertUpdateAndDeleteUseTheRuntimeMutationPath() {
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+        generateRuntimeSchema(fixture);
 
         CreateRowResponse created = mutationRowsService.createRow(
                 fixture.datasourceId(),
                 fixture.userId(),
                 "runtime_suite.orders",
                 new CreateRowRequest(Map.of(
-                        "customer_id", 2,
+                        "user_id", 2,
                         "status", "pending",
                         "amount", "45.25",
                         "note", "created in integration test",
@@ -434,68 +424,11 @@ class PostgresCoreEngineIntegrationTest {
     }
 
     @Test
-    void unsupportedMutationTargetsMapCleanlyAtTheApiLayer() throws Exception {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
-
-        mockMvc.perform(post("/core/datasources/{datasourceId}/tables/{tableName}/rows", fixture.datasourceId(), "runtime_suite.order_summaries")
-                        .with(authenticated(fixture))
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsBytes(new CreateRowRequest(Map.of(
-                                "status", "pending"
-                        )))))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.code").value(ApplicationErrorCode.UNSUPPORTED_MUTATION_TARGET.name()))
-                .andExpect(jsonPath("$.datasourceId").value(fixture.datasourceId()))
-                .andExpect(jsonPath("$.targetPath")
-                        .value("/core/datasources/" + fixture.datasourceId() + "/tables/runtime_suite.order_summaries/rows"));
-    }
-
-    @Test
-    void compositePrimaryKeyMutationsAreRejected() {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
-
-        assertThatThrownBy(() -> mutationRowsService.createRow(
-                fixture.datasourceId(),
-                fixture.userId(),
-                "runtime_suite.order_items",
-                new CreateRowRequest(Map.of(
-                        "order_id", 1,
-                        "line_no", 3,
-                        "sku", "SKU-NEW",
-                        "quantity", 2
-                ))
-        ))
-                .isInstanceOf(UnsupportedMutationTargetException.class)
-                .hasMessageContaining("exactly one primary key column");
-    }
-
-    @Test
-    void noPrimaryKeyMutationsAreRejected() {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
-
-        assertThatThrownBy(() -> mutationRowsService.createRow(
-                fixture.datasourceId(),
-                fixture.userId(),
-                "runtime_suite.audit_log",
-                new CreateRowRequest(Map.of(
-                        "event_id", "evt-100",
-                        "payload", Map.of("source", "integration")
-                ))
-        ))
-                .isInstanceOf(UnsupportedMutationTargetException.class)
-                .hasMessageContaining("exactly one primary key column");
-    }
-
-    @Test
     void uniqueConstraintViolationsMapToConflict() throws Exception {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+        generateRuntimeSchema(fixture);
 
-        mockMvc.perform(post("/core/datasources/{datasourceId}/tables/{tableName}/rows", fixture.datasourceId(), "runtime_suite.customers")
+        mockMvc.perform(post("/core/datasources/{datasourceId}/tables/{tableName}/rows", fixture.datasourceId(), "runtime_suite.users")
                         .with(authenticated(fixture))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -511,15 +444,15 @@ class PostgresCoreEngineIntegrationTest {
 
     @Test
     void foreignKeyViolationsMapToConflict() throws Exception {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+        generateRuntimeSchema(fixture);
 
         mockMvc.perform(post("/core/datasources/{datasourceId}/tables/{tableName}/rows", fixture.datasourceId(), "runtime_suite.orders")
                         .with(authenticated(fixture))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(new CreateRowRequest(Map.of(
-                                "customer_id", 9999,
+                                "user_id", 9999,
                                 "status", "pending",
                                 "amount", "25.00"
                         )))))
@@ -531,15 +464,15 @@ class PostgresCoreEngineIntegrationTest {
 
     @Test
     void databaseValidationFailuresMapToBadRequest() throws Exception {
-        TestFixture fixture = createFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
-        generateSchema(fixture);
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+        generateRuntimeSchema(fixture);
 
         mockMvc.perform(post("/core/datasources/{datasourceId}/tables/{tableName}/rows", fixture.datasourceId(), "runtime_suite.orders")
                         .with(authenticated(fixture))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsBytes(new CreateRowRequest(Map.of(
-                                "customer_id", 1,
+                                "user_id", 1,
                                 "status", "pending",
                                 "amount", "-5.00"
                         )))))
@@ -551,7 +484,7 @@ class PostgresCoreEngineIntegrationTest {
 
     @Test
     void datasourceAuthenticationFailuresMapThroughTheConnectionApi() throws Exception {
-        TestFixture fixture = createFixture("wrong-password", RUNTIME_SCHEMA);
+        TestFixture fixture = createRuntimeDatasourceFixture("wrong-password", RUNTIME_SCHEMA);
 
         mockMvc.perform(post("/datasource/{id}/test-connection", fixture.datasourceId())
                         .with(authenticated(fixture))
@@ -561,11 +494,11 @@ class PostgresCoreEngineIntegrationTest {
                 .andExpect(jsonPath("$.message").value("Authentication with PostgreSQL failed"));
     }
 
-    private GeneratedSchema generateSchema(TestFixture fixture) {
+    private GeneratedSchema generateRuntimeSchema(TestFixture fixture) {
         return schemaGenerationService.generate(fixture.datasourceId(), fixture.userId());
     }
 
-    private TestFixture createFixture(String runtimePassword, String schemaName) {
+    private TestFixture createRuntimeDatasourceFixture(String runtimePassword, String schemaName) {
         UserAccountEntity user = new UserAccountEntity();
         user.setUsername("runtime-owner");
         user.setEmail("runtime-owner@example.com");
@@ -621,7 +554,7 @@ class PostgresCoreEngineIntegrationTest {
                 "CREATE SCHEMA " + RUNTIME_SCHEMA,
                 "CREATE TYPE " + RUNTIME_SCHEMA + ".order_status AS ENUM ('pending', 'paid', 'cancelled')",
                 """
-                CREATE TABLE runtime_suite.customers (
+                CREATE TABLE runtime_suite.users (
                     id BIGSERIAL PRIMARY KEY,
                     email TEXT NOT NULL UNIQUE,
                     name TEXT NOT NULL
@@ -630,7 +563,7 @@ class PostgresCoreEngineIntegrationTest {
                 """
                 CREATE TABLE runtime_suite.orders (
                     id BIGSERIAL PRIMARY KEY,
-                    customer_id BIGINT NOT NULL REFERENCES runtime_suite.customers(id),
+                    user_id BIGINT NOT NULL REFERENCES runtime_suite.users(id),
                     status runtime_suite.order_status NOT NULL,
                     amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
                     note TEXT,
@@ -640,63 +573,20 @@ class PostgresCoreEngineIntegrationTest {
                 )
                 """,
                 """
-                CREATE TABLE runtime_suite.order_items (
-                    order_id BIGINT NOT NULL REFERENCES runtime_suite.orders(id),
-                    line_no INTEGER NOT NULL,
-                    sku TEXT NOT NULL,
-                    quantity INTEGER NOT NULL CHECK (quantity > 0),
-                    PRIMARY KEY (order_id, line_no)
-                )
-                """,
-                """
-                CREATE TABLE runtime_suite.audit_log (
-                    event_id TEXT NOT NULL,
-                    payload JSONB,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                )
-                """,
-                """
-                INSERT INTO runtime_suite.customers (id, email, name) VALUES
+                INSERT INTO runtime_suite.users (id, email, name) VALUES
                     (1, 'alice@example.com', 'Alice'),
                     (2, 'bob@example.com', 'Bob'),
                     (3, 'carol@example.com', 'Carol')
                 """,
                 """
-                INSERT INTO runtime_suite.orders (id, customer_id, status, amount, note, tags, created_at, updated_at) VALUES
+                INSERT INTO runtime_suite.orders (id, user_id, status, amount, note, tags, created_at, updated_at) VALUES
                     (1, 1, 'pending', 99.99, 'first order', ARRAY['fragile'], '2026-04-10T10:00:00Z', '2026-04-10T10:00:00'),
                     (2, 1, 'paid', 120.50, 'priority shipment', ARRAY['priority', 'gift'], '2026-04-10T11:00:00Z', '2026-04-10T11:00:00'),
                     (3, 2, 'cancelled', 80.00, NULL, ARRAY['return'], '2026-04-11T08:30:00Z', '2026-04-11T08:30:00'),
                     (4, 3, 'paid', 164.10, 'gift order', NULL, '2026-04-11T09:45:00Z', '2026-04-11T09:45:00')
                 """,
-                """
-                INSERT INTO runtime_suite.order_items (order_id, line_no, sku, quantity) VALUES
-                    (1, 1, 'SKU-1', 2),
-                    (1, 2, 'SKU-2', 1),
-                    (2, 1, 'SKU-3', 1)
-                """,
-                "SELECT setval(pg_get_serial_sequence('runtime_suite.customers', 'id'), 3, true)",
-                "SELECT setval(pg_get_serial_sequence('runtime_suite.orders', 'id'), 4, true)",
-                """
-                CREATE VIEW runtime_suite.order_summaries AS
-                SELECT
-                    o.id,
-                    c.email AS customer_email,
-                    o.status,
-                    o.amount
-                FROM runtime_suite.orders o
-                JOIN runtime_suite.customers c ON c.id = o.customer_id
-                """,
-                """
-                CREATE MATERIALIZED VIEW runtime_suite.customer_order_totals AS
-                SELECT
-                    c.id AS customer_id,
-                    c.email,
-                    COUNT(o.id) AS order_count,
-                    COALESCE(SUM(o.amount), 0)::NUMERIC(12, 2) AS total_amount
-                FROM runtime_suite.customers c
-                LEFT JOIN runtime_suite.orders o ON o.customer_id = c.id
-                GROUP BY c.id, c.email
-                """
+                "SELECT setval(pg_get_serial_sequence('runtime_suite.users', 'id'), 3, true)",
+                "SELECT setval(pg_get_serial_sequence('runtime_suite.orders', 'id'), 4, true)"
         );
     }
 
@@ -715,32 +605,32 @@ class PostgresCoreEngineIntegrationTest {
     private static Stream<Arguments> readFilterScenarios() {
         return Stream.of(
                 Arguments.of(
-                        "eq filter",
+                        "eq filter on enum status",
                         Map.of("status", eqFilter("paid")),
                         List.of(2L, 4L)
                 ),
                 Arguments.of(
-                        "gt filter",
+                        "gt filter on numeric amount",
                         Map.of("amount", gtFilter("100")),
                         List.of(2L, 4L)
                 ),
                 Arguments.of(
-                        "between filter",
+                        "between filter on numeric amount",
                         Map.of("amount", betweenFilter("90", "130")),
                         List.of(1L, 2L)
                 ),
                 Arguments.of(
-                        "in filter",
-                        Map.of("customer_id", inFilter(1, 3)),
+                        "in filter on foreign key user_id",
+                        Map.of("user_id", inFilter(1, 3)),
                         List.of(1L, 2L, 4L)
                 ),
                 Arguments.of(
-                        "ilike filter",
+                        "ilike filter on note",
                         Map.of("note", ilikeFilter("%PRIORITY%")),
                         List.of(2L)
                 ),
                 Arguments.of(
-                        "is null filter",
+                        "is null filter on note",
                         Map.of("note", isNullFilter()),
                         List.of(3L)
                 )

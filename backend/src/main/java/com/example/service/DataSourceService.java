@@ -3,9 +3,7 @@ package com.example.service;
 
 import com.example.common.exceptions.DataSourceAlreadyExistsException;
 import com.example.common.exceptions.MissingRequiredFieldException;
-import com.example.common.exceptions.NoDataSourceFoundException;
 import com.example.common.exceptions.UnsupportedDatabaseTypeException;
-import com.example.common.exceptions.UserNotFoundException;
 import com.example.controller.dtos.request.ReqDataSourceDTO;
 import com.example.controller.dtos.request.UpdateDataSourceDTO;
 import com.example.controller.dtos.response.ResDataSourceConnectionTestDTO;
@@ -14,14 +12,16 @@ import com.example.core.postgres.connection.PostgresConnectionTestResult;
 import com.example.core.postgres.connection.PostgresConnectionTestService;
 import com.example.core.postgres.schema.registry.SchemaRegistryService;
 import com.example.persistence.Enums.DataSourceConnectionStatus;
+import com.example.persistence.Enums.DataSourceAccessRole;
 import com.example.persistence.Enums.DataSourceStatus;
 import com.example.persistence.Enums.DatabaseTypes;
 import com.example.persistence.model.DataSourceEntity;
 import com.example.persistence.model.UserAccountEntity;
+import com.example.persistence.repository.DataSourceAccessRepository;
 import com.example.persistence.repository.DataSourceRepository;
-import com.example.persistence.repository.UserAccountRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,25 +49,28 @@ public class DataSourceService {
     }
 
     private final DataSourceRepository dataSourceRepository;
-    private final UserAccountRepository userAccountRepository;
+    private final DataSourceAccessRepository dataSourceAccessRepository;
+    private final DataSourceAuthorizationService dataSourceAuthorizationService;
     private final DataSourcePasswordCipher dataSourcePasswordCipher;
     private final PostgresConnectionTestService postgresConnectionTestService;
     private final SchemaRegistryService schemaRegistryService;
 
     @Autowired
     public DataSourceService(DataSourceRepository dataSourceRepository,
-                             UserAccountRepository userAccountRepository,
+                             DataSourceAccessRepository dataSourceAccessRepository,
+                             DataSourceAuthorizationService dataSourceAuthorizationService,
                              DataSourcePasswordCipher dataSourcePasswordCipher,
                              PostgresConnectionTestService postgresConnectionTestService,
                              SchemaRegistryService schemaRegistryService) {
         this.dataSourceRepository = dataSourceRepository;
-        this.userAccountRepository = userAccountRepository;
+        this.dataSourceAccessRepository = dataSourceAccessRepository;
+        this.dataSourceAuthorizationService = dataSourceAuthorizationService;
         this.dataSourcePasswordCipher = dataSourcePasswordCipher;
         this.postgresConnectionTestService = postgresConnectionTestService;
         this.schemaRegistryService = schemaRegistryService;
     }
 
-    private ResDataSourceDTO mapToDTO(DataSourceEntity dataSourceEntity) {
+    private ResDataSourceDTO mapToDTO(DataSourceEntity dataSourceEntity, DataSourceAccessRole accessRole) {
         return new ResDataSourceDTO(
                 dataSourceEntity.getId(),
                 dataSourceEntity.getUserAccount().getId(),
@@ -84,6 +87,7 @@ public class DataSourceService {
                 dataSourceEntity.getApplicationName(),
                 dataSourceEntity.getSslRootCertRef(),
                 dataSourceEntity.getExtraJdbcOptionsJson(),
+                accessRole,
                 dataSourceEntity.getStatus(),
                 dataSourceEntity.getLastConnectionTestAt(),
                 dataSourceEntity.getLastConnectionStatus(),
@@ -259,26 +263,33 @@ public class DataSourceService {
     }
 
     public ResDataSourceDTO getDataSource(Integer id, Integer userId) {
-        DataSourceEntity dataSourceEntity = dataSourceRepository.findByIdAndUserAccount_Id(id, userId)
-                            .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
+        UserAccountEntity user = dataSourceAuthorizationService.getRequiredUser(userId);
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getViewableDatasource(userId, id);
+        DataSourceAccessRole accessRole = dataSourceAuthorizationService
+                .getAccess(user, id)
+                .orElseThrow(() -> new IllegalStateException("Datasource access missing for readable datasource"));
 
-        return mapToDTO(dataSourceEntity);
+        return mapToDTO(dataSourceEntity, accessRole);
     }
 
     public List<ResDataSourceDTO> getAllDataSource(Integer userId) {
-        List<DataSourceEntity> dataSourceEntities = dataSourceRepository.findAllByUserAccount_Id(userId);
+        UserAccountEntity user = dataSourceAuthorizationService.getRequiredUser(userId);
+        List<DataSourceEntity> dataSourceEntities = dataSourceAuthorizationService.getReadableDatasources(user);
 
         List<ResDataSourceDTO> resDataSourceDTOList = new ArrayList<>();
         for (DataSourceEntity dataSourceEntity : dataSourceEntities) {
-            resDataSourceDTOList.add(mapToDTO(dataSourceEntity));
+            DataSourceAccessRole accessRole = dataSourceAuthorizationService
+                    .getAccess(user, dataSourceEntity.getId())
+                    .orElseThrow(() -> new IllegalStateException("Datasource access missing for readable datasource"));
+            resDataSourceDTOList.add(mapToDTO(dataSourceEntity, accessRole));
         }
 
         return resDataSourceDTOList;
     }
 
     public void saveDataSource(ReqDataSourceDTO reqDataSourceDTO, Integer userId) {
-        UserAccountEntity userAccountEntity = userAccountRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        UserAccountEntity userAccountEntity = dataSourceAuthorizationService.getRequiredUser(userId);
+        dataSourceAuthorizationService.assertCanCreateDatasource(userAccountEntity);
 
         NormalizedConnectionDefinition connectionDefinition = normalizeCreateRequest(reqDataSourceDTO);
 
@@ -300,25 +311,27 @@ public class DataSourceService {
         resetConnectionMetadata(dataSourceEntity);
         dataSourceEntity.setUserAccount(userAccountEntity);
 
-        dataSourceRepository.save(dataSourceEntity);
+        DataSourceEntity savedDataSource = dataSourceRepository.save(dataSourceEntity);
+        dataSourceAuthorizationService.ensureOwnerManagerAccess(savedDataSource);
     }
 
+    @Transactional
     public void deleteDataSource(Integer id, Integer userId) {
-        DataSourceEntity dataSourceEntity = dataSourceRepository.findByIdAndUserAccount_Id(id, userId)
-                .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getManageableDatasource(userId, id);
 
+        dataSourceAccessRepository.deleteAllByDataSource_Id(id);
+        dataSourceAccessRepository.flush();
         dataSourceRepository.delete(dataSourceEntity);
         schemaRegistryService.evict(id);
     }
 
     public void updateDataSource(UpdateDataSourceDTO updateDataSourceDTO, Integer userId, Integer id) {
-        DataSourceEntity dataSourceEntity = dataSourceRepository.findByIdAndUserAccount_Id(id, userId)
-                .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getManageableDatasource(userId, id);
 
         NormalizedConnectionDefinition connectionDefinition = normalizeUpdateRequest(updateDataSourceDTO);
 
         if (dataSourceRepository.existsByUserAccount_IdAndDbTypeAndHostAndPortAndDatabaseNameAndSchemaNameAndUsernameAndIdNot(
-                userId,
+                dataSourceEntity.getUserAccount().getId(),
                 connectionDefinition.dbType(),
                 connectionDefinition.host(),
                 connectionDefinition.port(),
@@ -347,9 +360,8 @@ public class DataSourceService {
     }
 
     public ResDataSourceConnectionTestDTO testDataSourceConnection(Integer id, Integer userId) {
-            PostgresConnectionTestResult result = postgresConnectionTestService.test(id, userId);
-        DataSourceEntity dataSourceEntity = dataSourceRepository.findByIdAndUserAccount_Id(id, userId)
-                .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getManageableDatasource(userId, id);
+        PostgresConnectionTestResult result = postgresConnectionTestService.test(dataSourceEntity);
 
         return mapToConnectionTestDTO(result, dataSourceEntity);
     }

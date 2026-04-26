@@ -39,7 +39,12 @@ public class UserAccountController {
     public ResponseEntity<CurrentUserDTO> me(Authentication authentication) throws UserNotFoundException {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
         UserAccountEntity userAccount = userAccountService.getUserById(user.userId());
-        return ResponseEntity.ok(new CurrentUserDTO(user.userId(), user.email(), userAccount.getUsername()));
+        return ResponseEntity.ok(new CurrentUserDTO(
+                user.userId(),
+                user.email(),
+                userAccount.getUsername(),
+                userAccount.getGlobalRole()
+        ));
     }
 
     @GetMapping("/csrf")

@@ -1,6 +1,5 @@
 package com.example.core.postgres.schema;
 
-import com.example.common.exceptions.NoDataSourceFoundException;
 import com.example.core.postgres.connection.PostgresRuntimeConnectionDefinition;
 import com.example.core.postgres.connection.PostgresRuntimeConnectionResolver;
 import com.example.core.postgres.introspection.PostgresIntrospectionResult;
@@ -10,6 +9,7 @@ import com.example.core.postgres.schema.registry.SchemaRegistryService;
 import com.example.core.postgres.schema.validation.SchemaValidationService;
 import com.example.persistence.model.DataSourceEntity;
 import com.example.persistence.repository.DataSourceRepository;
+import com.example.service.DataSourceAuthorizationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +23,7 @@ public class SchemaGenerationService {
     private final SchemaFingerprintService schemaFingerprintService;
     private final SchemaRegistryService schemaRegistryService;
     private final DataSourceRepository dataSourceRepository;
+    private final DataSourceAuthorizationService dataSourceAuthorizationService;
 
     public SchemaGenerationService(
             PostgresRuntimeConnectionResolver runtimeConnectionResolver,
@@ -31,7 +32,8 @@ public class SchemaGenerationService {
             SchemaValidationService schemaValidationService,
             SchemaFingerprintService schemaFingerprintService,
             SchemaRegistryService schemaRegistryService,
-            DataSourceRepository dataSourceRepository
+            DataSourceRepository dataSourceRepository,
+            DataSourceAuthorizationService dataSourceAuthorizationService
     ) {
         this.runtimeConnectionResolver = runtimeConnectionResolver;
         this.metadataIntrospector = metadataIntrospector;
@@ -40,12 +42,12 @@ public class SchemaGenerationService {
         this.schemaFingerprintService = schemaFingerprintService;
         this.schemaRegistryService = schemaRegistryService;
         this.dataSourceRepository = dataSourceRepository;
+        this.dataSourceAuthorizationService = dataSourceAuthorizationService;
     }
 
     @Transactional
     public GeneratedSchema generate(Integer datasourceId, Integer userId) {
-        DataSourceEntity dataSourceEntity = dataSourceRepository.findByIdAndUserAccount_Id(datasourceId, userId)
-                .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getManageableDatasource(userId, datasourceId);
 
         PostgresRuntimeConnectionDefinition definition = runtimeConnectionResolver.resolve(dataSourceEntity);
         PostgresIntrospectionResult introspectionResult = metadataIntrospector.introspect(definition);

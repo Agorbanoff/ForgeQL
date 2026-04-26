@@ -60,7 +60,7 @@ public class ReadRowsService {
         ReadTableAst readTableAst = readQueryAstBuilder.build(resolvedTableIdentifier.qualifiedName(), request);
         ReadExecutionPlan executionPlan = readQueryPlanner.plan(datasourceId, userId, readTableAst);
         SqlCommand sqlCommand = readSqlBuilder.build(executionPlan);
-        PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(datasourceId, userId);
+        PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(datasourceId);
         List<Map<String, Object>> rows = jdbcRowExecutor.execute(connectionDefinition, sqlCommand);
 
         return new RowsResponse(

@@ -1,5 +1,6 @@
 package com.example.persistence.model;
 
+import com.example.persistence.Enums.GlobalRole;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -34,14 +35,24 @@ public class UserAccountEntity {
     @Column(nullable = false, length = 255)
     private String passwordHash;
 
+    @Column(nullable = false, length = 50)
+    @Enumerated(EnumType.STRING)
+    private GlobalRole globalRole;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    @OneToMany(mappedBy = "userAccount", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "userAccount", fetch = FetchType.LAZY)
     private List<DataSourceEntity> dataSources = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    private List<DataSourceAccessEntity> dataSourceAccesses = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
+        if (this.globalRole == null) {
+            this.globalRole = GlobalRole.MEMBER;
+        }
         this.createdAt = Instant.now();
     }
 }

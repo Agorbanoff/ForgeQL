@@ -48,6 +48,13 @@ public class PostgresConnectionTestService {
         DataSourceEntity dataSourceEntity = dataSourceRepository.findByIdAndUserAccount_Id(datasourceId, userId)
                 .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
 
+        return test(dataSourceEntity);
+    }
+
+    @Transactional
+    public PostgresConnectionTestResult test(DataSourceEntity dataSourceEntity) {
+        Integer datasourceId = dataSourceEntity.getId();
+
         PostgresRuntimeConnectionDefinition definition = runtimeConnectionResolver.resolve(dataSourceEntity);
         Instant testedAt = Instant.now();
 

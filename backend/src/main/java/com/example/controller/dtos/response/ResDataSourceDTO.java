@@ -1,5 +1,6 @@
 package com.example.controller.dtos.response;
 
+import com.example.persistence.Enums.DataSourceAccessRole;
 import com.example.persistence.Enums.DataSourceConnectionStatus;
 import com.example.persistence.Enums.DataSourceStatus;
 import com.example.persistence.Enums.DatabaseTypes;
@@ -23,6 +24,7 @@ public record ResDataSourceDTO(
         String applicationName,
         String sslRootCertRef,
         String extraJdbcOptionsJson,
+        DataSourceAccessRole accessRole,
         DataSourceStatus status,
         Instant lastConnectionTestAt,
         DataSourceConnectionStatus lastConnectionStatus,

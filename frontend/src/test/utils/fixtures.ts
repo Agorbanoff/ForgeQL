@@ -16,6 +16,7 @@ export function buildCurrentUser(overrides: Partial<CurrentUser> = {}): CurrentU
     id: 1,
     email: 'user@example.com',
     username: 'alex',
+    globalRole: 'MEMBER',
     ...overrides,
   }
 }
@@ -39,6 +40,7 @@ export function buildDatasource(
     applicationName: 'ForgeQL',
     sslRootCertRef: null,
     extraJdbcOptionsJson: null,
+    accessRole: 'MANAGER',
     status: 'ACTIVE',
     lastConnectionTestAt: '2026-04-13T12:00:00.000Z',
     lastConnectionStatus: 'SUCCEEDED',

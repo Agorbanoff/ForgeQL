@@ -10,7 +10,7 @@
     <groupId>com.example</groupId>
     <artifactId>ForgeQL</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>SigmaQl</name>
+    <name>ForgeQL</name>
     <description>version control for discord server</description>
     <url/>
     <licenses>

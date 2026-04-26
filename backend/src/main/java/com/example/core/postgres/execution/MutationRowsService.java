@@ -25,6 +25,8 @@ import com.example.core.postgres.sql.DeleteSqlBuilder;
 import com.example.core.postgres.sql.InsertSqlBuilder;
 import com.example.core.postgres.sql.SqlCommand;
 import com.example.core.postgres.sql.UpdateSqlBuilder;
+import com.example.persistence.model.DataSourceEntity;
+import com.example.service.DataSourceAuthorizationService;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -40,6 +42,7 @@ public class MutationRowsService {
     private final DeleteSqlBuilder deleteSqlBuilder;
     private final MutationExecutor mutationExecutor;
     private final PostgresRuntimeConnectionResolver runtimeConnectionResolver;
+    private final DataSourceAuthorizationService dataSourceAuthorizationService;
 
     public MutationRowsService(
             SchemaReadService schemaReadService,
@@ -51,7 +54,8 @@ public class MutationRowsService {
             UpdateSqlBuilder updateSqlBuilder,
             DeleteSqlBuilder deleteSqlBuilder,
             MutationExecutor mutationExecutor,
-            PostgresRuntimeConnectionResolver runtimeConnectionResolver
+            PostgresRuntimeConnectionResolver runtimeConnectionResolver,
+            DataSourceAuthorizationService dataSourceAuthorizationService
     ) {
         this.schemaReadService = schemaReadService;
         this.mutationAstBuilder = mutationAstBuilder;
@@ -63,6 +67,7 @@ public class MutationRowsService {
         this.deleteSqlBuilder = deleteSqlBuilder;
         this.mutationExecutor = mutationExecutor;
         this.runtimeConnectionResolver = runtimeConnectionResolver;
+        this.dataSourceAuthorizationService = dataSourceAuthorizationService;
     }
 
     public CreateRowResponse createRow(
@@ -71,6 +76,7 @@ public class MutationRowsService {
             String tableIdentifier,
             CreateRowRequest request
     ) {
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getManageableDatasource(userId, datasourceId);
         ResolvedTableIdentifier resolvedTableIdentifier = schemaReadService.resolveTableIdentifier(
                 datasourceId,
                 userId,
@@ -79,7 +85,7 @@ public class MutationRowsService {
         InsertMutationAst mutationAst = mutationAstBuilder.buildInsert(resolvedTableIdentifier.qualifiedName(), request);
         InsertExecutionPlan executionPlan = insertPlanner.plan(datasourceId, userId, mutationAst);
         SqlCommand sqlCommand = insertSqlBuilder.build(executionPlan);
-        PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(datasourceId, userId);
+        PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(dataSourceEntity);
         MutationResult mutationResult = mutationExecutor.execute(connectionDefinition, executionPlan, sqlCommand);
 
         return new CreateRowResponse(
@@ -96,6 +102,7 @@ public class MutationRowsService {
             Long primaryKeyValue,
             UpdateRowRequest request
     ) {
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getManageableDatasource(userId, datasourceId);
         ResolvedTableIdentifier resolvedTableIdentifier = schemaReadService.resolveTableIdentifier(
                 datasourceId,
                 userId,
@@ -108,7 +115,7 @@ public class MutationRowsService {
         );
         UpdateExecutionPlan executionPlan = updatePlanner.plan(datasourceId, userId, mutationAst);
         SqlCommand sqlCommand = updateSqlBuilder.build(executionPlan);
-        PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(datasourceId, userId);
+        PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(dataSourceEntity);
         MutationResult mutationResult = mutationExecutor.execute(connectionDefinition, executionPlan, sqlCommand);
         if (mutationResult.affectedRows() == 0) {
             throw new RowNotFoundException("Row not found for the requested primary key");
@@ -126,6 +133,7 @@ public class MutationRowsService {
             String tableIdentifier,
             Long primaryKeyValue
     ) {
+        DataSourceEntity dataSourceEntity = dataSourceAuthorizationService.getManageableDatasource(userId, datasourceId);
         ResolvedTableIdentifier resolvedTableIdentifier = schemaReadService.resolveTableIdentifier(
                 datasourceId,
                 userId,
@@ -137,7 +145,7 @@ public class MutationRowsService {
         );
         DeleteExecutionPlan executionPlan = deletePlanner.plan(datasourceId, userId, mutationAst);
         SqlCommand sqlCommand = deleteSqlBuilder.build(executionPlan);
-        PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(datasourceId, userId);
+        PostgresRuntimeConnectionDefinition connectionDefinition = runtimeConnectionResolver.resolve(dataSourceEntity);
         MutationResult mutationResult = mutationExecutor.execute(connectionDefinition, executionPlan, sqlCommand);
         if (mutationResult.affectedRows() == 0) {
             throw new RowNotFoundException("Row not found for the requested primary key");

@@ -29,7 +29,14 @@ public class PostgresRuntimeConnectionResolver {
     }
 
     public PostgresRuntimeConnectionDefinition resolve(Integer datasourceId, Integer userId) {
-        DataSourceEntity dataSourceEntity = dataSourceRepository.findByIdAndUserAccount_Id(datasourceId, userId)
+        DataSourceEntity dataSourceEntity = dataSourceRepository.findById(datasourceId)
+                .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
+
+        return resolve(dataSourceEntity);
+    }
+
+    public PostgresRuntimeConnectionDefinition resolve(Integer datasourceId) {
+        DataSourceEntity dataSourceEntity = dataSourceRepository.findById(datasourceId)
                 .orElseThrow(() -> new NoDataSourceFoundException("Datasource not found"));
 
         return resolve(dataSourceEntity);

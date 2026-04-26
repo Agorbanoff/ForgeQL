@@ -9,12 +9,17 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
 @Setter
 @Table(
         name = "data_sources",
+        indexes = {
+                @Index(name = "idx_data_sources_user_id", columnList = "user_id")
+        },
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_data_source_identity",
                 columnNames = {"user_id", "db_type", "host", "port", "database_name", "schema_name", "username"}
@@ -102,6 +107,9 @@ public class DataSourceEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private UserAccountEntity userAccount;
+
+    @OneToMany(mappedBy = "dataSource", fetch = FetchType.LAZY)
+    private List<DataSourceAccessEntity> dataSourceAccesses = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {

@@ -2,6 +2,9 @@ package com.example.common;
 
 import com.example.common.PostgresJdbcErrorClassifier.ErrorCategory;
 import com.example.common.exceptions.AmbiguousTableIdentifierException;
+import com.example.common.exceptions.DataSourceAccessAlreadyExistsException;
+import com.example.common.exceptions.DataSourceAccessNotFoundException;
+import com.example.common.exceptions.DataSourceAlreadyExistsException;
 import com.example.common.exceptions.GeneratedSchemaNotFoundException;
 import com.example.common.exceptions.InvalidAggregateRequestException;
 import com.example.common.exceptions.InvalidDataSourceConfigurationException;
@@ -204,6 +207,21 @@ public class GlobalExceptionHandler {
             return new ErrorDescriptor(
                     exception.getStatusCode(),
                     ApplicationErrorCode.DATASOURCE_NOT_FOUND,
+                    exception.getMessage()
+            );
+        }
+        if (exception instanceof DataSourceAccessNotFoundException) {
+            return new ErrorDescriptor(
+                    exception.getStatusCode(),
+                    ApplicationErrorCode.DATASOURCE_ACCESS_NOT_FOUND,
+                    exception.getMessage()
+            );
+        }
+        if (exception instanceof DataSourceAlreadyExistsException
+                || exception instanceof DataSourceAccessAlreadyExistsException) {
+            return new ErrorDescriptor(
+                    exception.getStatusCode(),
+                    ApplicationErrorCode.UNIQUE_CONSTRAINT_VIOLATION,
                     exception.getMessage()
             );
         }

@@ -1,4 +1,6 @@
 export type DatabaseType = 'POSTGRESQL'
+export type GlobalRole = 'ADMIN' | 'MEMBER' | 'VIEWER'
+export type DatasourceAccessRole = 'MANAGER' | 'VIEWER'
 
 export type SslMode =
   | 'DISABLE'
@@ -70,6 +72,7 @@ export type DatasourceRecord = {
   applicationName: string | null
   sslRootCertRef: string | null
   extraJdbcOptionsJson: string | null
+  accessRole: DatasourceAccessRole
   status: DatasourceStatus
   lastConnectionTestAt: string | null
   lastConnectionStatus: DatasourceConnectionStatus | null
@@ -79,6 +82,31 @@ export type DatasourceRecord = {
   serverVersion: string | null
   createdAt: string
   updatedAt: string
+}
+
+export type DatasourceAccessRecord = {
+  userId: number
+  username: string
+  email: string
+  accessRole: DatasourceAccessRole
+  createdAt: string
+}
+
+export type AssignDatasourceAccessPayload = {
+  userId: number
+  accessRole: DatasourceAccessRole
+}
+
+export type UpdateDatasourceAccessPayload = {
+  accessRole: DatasourceAccessRole
+}
+
+export type AdminUserRecord = {
+  id: number
+  username: string
+  email: string
+  globalRole: GlobalRole
+  createdAt: string
 }
 
 export type DatasourceConnectionTestResult = {

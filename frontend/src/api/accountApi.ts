@@ -1,4 +1,5 @@
 import { apiFetch, buildApiRequestError, initializeRequestSecurity } from './http'
+import type { GlobalRole } from '../types/platform'
 
 export type SignUpPayload = {
   username: string
@@ -15,6 +16,7 @@ export type CurrentUser = {
   id: number
   email: string
   username: string
+  globalRole: GlobalRole
 }
 
 export async function signUpUser(payload: SignUpPayload): Promise<void> {

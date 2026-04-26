@@ -102,6 +102,18 @@ function canManageDatasource(globalRole: GlobalRole | undefined) {
   return isMainAdminRole(globalRole)
 }
 
+function canManageDatasourceAccess(
+  globalRole: GlobalRole | undefined,
+  currentUserId: number | undefined,
+  datasource: DatasourceRecord
+) {
+  if (globalRole === 'MAIN_ADMIN') {
+    return true
+  }
+
+  return globalRole === 'ADMIN' && currentUserId === datasource.ownerUserId
+}
+
 function createEmptyEditorState(): DatasourceEditorState {
   return {
     displayName: '',
@@ -308,6 +320,10 @@ export default function ConnectionRequestPage() {
 
   const isAdmin = isAdminRole(user?.globalRole)
   const isMainAdmin = isMainAdminRole(user?.globalRole)
+  const canManageActiveDatasourceAccess = Boolean(
+    activeDatasource &&
+      canManageDatasourceAccess(user?.globalRole, user?.id, activeDatasource)
+  )
   const selectedDatasource = useMemo(
     () => activeDatasource ?? datasources[0] ?? null,
     [activeDatasource, datasources]
@@ -557,6 +573,11 @@ export default function ConnectionRequestPage() {
               {datasources.map((datasource) => {
                 const capability = getCapabilityCopy(datasource, isAdmin)
                 const canManage = canManageDatasource(user?.globalRole)
+                const canManageAccess = canManageDatasourceAccess(
+                  user?.globalRole,
+                  user?.id,
+                  datasource
+                )
 
                 return (
                   <article key={datasource.id} className="surface-card p-5">
@@ -624,7 +645,7 @@ export default function ConnectionRequestPage() {
                             </Button>
                           </>
                         ) : null}
-                        {isAdmin ? (
+                        {canManageAccess ? (
                           <Button
                             variant="primary"
                             className="w-full px-4 py-2"
@@ -647,7 +668,7 @@ export default function ConnectionRequestPage() {
 
       <DatasourceAccessModal
         datasource={selectedDatasource}
-        open={Boolean(isAdmin && activeDatasource)}
+        open={canManageActiveDatasourceAccess}
         onClose={() => setActiveDatasource(null)}
       />
 

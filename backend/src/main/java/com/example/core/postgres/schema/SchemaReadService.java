@@ -5,6 +5,7 @@ import com.example.core.postgres.schema.model.GeneratedSchema;
 import com.example.core.postgres.schema.model.SchemaColumn;
 import com.example.core.postgres.schema.model.SchemaRelation;
 import com.example.core.postgres.schema.model.SchemaTable;
+import com.example.core.postgres.schema.model.SchemaTableType;
 import com.example.core.postgres.schema.registry.SchemaRegistryService;
 import com.example.service.DataSourceAuthorizationService;
 import org.springframework.stereotype.Service;
@@ -37,7 +38,9 @@ public class SchemaReadService {
     }
 
     public List<SchemaTable> getTables(Integer datasourceId, Integer userId) {
-        return List.copyOf(getSchema(datasourceId, userId).tables().values());
+        return getSchema(datasourceId, userId).tables().values().stream()
+                .filter(table -> table.tableType() == SchemaTableType.TABLE)
+                .toList();
     }
 
     public ResolvedTableIdentifier resolveTableIdentifier(Integer datasourceId, Integer userId, String tableIdentifier) {

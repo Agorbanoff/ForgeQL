@@ -11,20 +11,28 @@ import {
 } from '../utils/fixtures'
 import { renderAppAt } from '../utils/render'
 
-function registerRuntimeExplorer(fetchMock: ReturnType<typeof installFetchMock>) {
-  const datasource = buildDatasource({ id: 1 })
+function registerRuntimeExplorer(
+  fetchMock: ReturnType<typeof installFetchMock>,
+  {
+    user = buildCurrentUser(),
+    datasource = buildDatasource({ id: 1 }),
+  }: {
+    user?: ReturnType<typeof buildCurrentUser>
+    datasource?: ReturnType<typeof buildDatasource>
+  } = {}
+) {
   const table = buildTable({ name: 'orders', qualifiedName: 'public.orders' })
 
-  fetchMock.route('GET', '/api/account/me', createJsonResponse(buildCurrentUser()))
-  fetchMock.route('GET', '/api/datasource/1', createJsonResponse(datasource))
+  fetchMock.route('GET', '/api/account/me', createJsonResponse(user))
+  fetchMock.route('GET', `/api/datasource/${datasource.id}`, createJsonResponse(datasource))
   fetchMock.route(
     'GET',
-    '/api/core/datasources/1/schema/summary',
-    createJsonResponse(buildSchemaSummary())
+    `/api/core/datasources/${datasource.id}/schema/summary`,
+    createJsonResponse(buildSchemaSummary({ datasourceId: datasource.id }))
   )
   fetchMock.route(
     'GET',
-    '/api/core/datasources/1/tables',
+    `/api/core/datasources/${datasource.id}/tables`,
     createJsonResponse({ tables: [table] })
   )
 
@@ -153,6 +161,26 @@ describe('runtime explorer', () => {
         },
       ],
     })
+  })
+
+  it('shows row mutation controls to members with datasource manager access', async () => {
+    const fetchMock = installFetchMock()
+    registerRuntimeExplorer(fetchMock, {
+      user: buildCurrentUser({ globalRole: 'MEMBER' }),
+      datasource: buildDatasource({ id: 1, accessRole: 'MANAGER' }),
+    })
+
+    fetchMock.route(
+      'GET',
+      (request) =>
+        request.url.pathname === '/api/core/datasources/1/tables/public.orders/rows',
+      createJsonResponse(buildRowsResponse([{ id: 1, name: 'Alpha', amount: 10 }]))
+    )
+
+    renderAppAt('/datasource/1/explorer')
+
+    expect(await screen.findByText('Create, update, delete')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create row' })).toBeInTheDocument()
   })
 
   it('creates, updates, and deletes rows through the runtime API and refreshes the grid', async () => {

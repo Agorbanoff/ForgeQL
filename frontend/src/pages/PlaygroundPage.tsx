@@ -95,6 +95,7 @@ const SYSTEM_SCHEMA_NAMES = new Set([
   'supabase_migrations',
   'vault',
 ])
+const EXPLORER_TABLE_TYPES = new Set<SchemaTable['tableType']>(['TABLE'])
 const TABLE_CAPABILITIES = [
   { key: 'read', label: 'Browse' },
   { key: 'aggregate', label: 'Aggregate' },
@@ -522,19 +523,23 @@ export default function PlaygroundPage() {
   ])
 
   const schemaScopedTables = useMemo(() => {
+    const explorerTables = tables.filter((table) =>
+      EXPLORER_TABLE_TYPES.has(table.tableType)
+    )
+
     if (schemaFilter === SCHEMA_FILTER_ALL) {
-      return tables
+      return explorerTables
     }
 
     if (schemaFilter === SCHEMA_FILTER_SYSTEM) {
-      return tables.filter((table) => isSystemSchema(table.schema))
+      return explorerTables.filter((table) => isSystemSchema(table.schema))
     }
 
     if (schemaFilter) {
-      return tables.filter((table) => table.schema === schemaFilter)
+      return explorerTables.filter((table) => table.schema === schemaFilter)
     }
 
-    return tables
+    return explorerTables
   }, [schemaFilter, tables])
 
   const filteredTables = useMemo(() => {
@@ -1321,7 +1326,7 @@ export default function PlaygroundPage() {
                   ? 'Browsing all schemas returned by the backend.'
                   : schemaFilter === SCHEMA_FILTER_SYSTEM
                     ? 'Browsing internal and Supabase-managed schemas.'
-                    : `Focused on ${schemaFilter || preferredSchema || 'the active schema'} by default.`}
+                    : `Focused on ${schemaFilter || preferredSchema || 'the active schema'} tables only.`}
                 {hiddenSystemTables > 0 ? ` ${formatCount(hiddenSystemTables, 'internal resource')} hidden.` : ''}
               </p>
               <div className="mt-5 space-y-3">

@@ -45,7 +45,7 @@ public class AdminManagementService {
 
     @Transactional
     public void assignAccess(Integer adminUserId, Integer datasourceId, AssignDataSourceAccessDTO request) {
-        UserAccountEntity actor = requireAdminOrMainAdmin(adminUserId);
+        UserAccountEntity actor = getRequiredUser(adminUserId);
         DataSourceEntity dataSource = getRequiredDatasource(datasourceId);
         validateDatasourceAccessManagement(actor, dataSource);
         UserAccountEntity targetUser = getRequiredUser(request.userId());
@@ -70,7 +70,7 @@ public class AdminManagementService {
             Integer targetUserId,
             UpdateDataSourceAccessDTO request
     ) {
-        UserAccountEntity actor = requireAdminOrMainAdmin(adminUserId);
+        UserAccountEntity actor = getRequiredUser(adminUserId);
         DataSourceEntity dataSource = getRequiredDatasource(datasourceId);
         validateDatasourceAccessManagement(actor, dataSource);
         UserAccountEntity targetUser = getRequiredUser(targetUserId);
@@ -85,7 +85,7 @@ public class AdminManagementService {
 
     @Transactional
     public void removeAccess(Integer adminUserId, Integer datasourceId, Integer targetUserId) {
-        UserAccountEntity actor = requireAdminOrMainAdmin(adminUserId);
+        UserAccountEntity actor = getRequiredUser(adminUserId);
         DataSourceEntity dataSource = getRequiredDatasource(datasourceId);
         validateDatasourceAccessManagement(actor, dataSource);
         getRequiredUser(targetUserId);
@@ -101,7 +101,7 @@ public class AdminManagementService {
 
     @Transactional(readOnly = true)
     public List<DataSourceAccessDTO> listAccess(Integer adminUserId, Integer datasourceId) {
-        UserAccountEntity actor = requireAdminOrMainAdmin(adminUserId);
+        UserAccountEntity actor = getRequiredUser(adminUserId);
         DataSourceEntity dataSource = getRequiredDatasource(datasourceId);
         validateDatasourceAccessManagement(actor, dataSource);
 
@@ -218,6 +218,13 @@ public class AdminManagementService {
             return;
         }
         if (actor.getGlobalRole() == GlobalRole.ADMIN) {
+            if (isDatasourceOwner(actor.getId(), dataSource)) {
+                return;
+            }
+            throw new ForbiddenException("You do not have permission to manage access for this datasource");
+        }
+        if (actor.getGlobalRole() == GlobalRole.MEMBER
+                && dataSourceAuthorizationService.canManageDatasource(actor, dataSource.getId())) {
             return;
         }
 

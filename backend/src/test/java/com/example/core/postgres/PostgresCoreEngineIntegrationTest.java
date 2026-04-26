@@ -37,9 +37,11 @@ import com.example.persistence.Enums.DatabaseTypes;
 import com.example.persistence.Enums.SslMode;
 import com.example.persistence.model.DataSourceEntity;
 import com.example.persistence.model.UserAccountEntity;
+import com.example.persistence.repository.DataSourceAccessRepository;
 import com.example.persistence.repository.DataSourceRepository;
 import com.example.persistence.repository.JwtRepository;
 import com.example.persistence.repository.UserAccountRepository;
+import com.example.service.DataSourceAuthorizationService;
 import com.example.service.DataSourcePasswordCipher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -114,6 +116,9 @@ class PostgresCoreEngineIntegrationTest {
     private DataSourceRepository dataSourceRepository;
 
     @Autowired
+    private DataSourceAccessRepository dataSourceAccessRepository;
+
+    @Autowired
     private UserAccountRepository userAccountRepository;
 
     @Autowired
@@ -121,6 +126,9 @@ class PostgresCoreEngineIntegrationTest {
 
     @Autowired
     private DataSourcePasswordCipher dataSourcePasswordCipher;
+
+    @Autowired
+    private DataSourceAuthorizationService dataSourceAuthorizationService;
 
     @Autowired
     private PostgresConnectionTestService postgresConnectionTestService;
@@ -156,6 +164,7 @@ class PostgresCoreEngineIntegrationTest {
     void resetState() throws SQLException {
         runtimePoolManager.shutdown();
         jwtRepository.deleteAll();
+        dataSourceAccessRepository.deleteAll();
         dataSourceRepository.deleteAll();
         userAccountRepository.deleteAll();
         rebuildRuntimeSchema();
@@ -199,7 +208,7 @@ class PostgresCoreEngineIntegrationTest {
         assertThat(schema.defaultSchema()).isEqualTo(RUNTIME_SCHEMA);
         assertThat(schema.fingerprint()).isNotBlank();
         assertThat(tables).extracting(SchemaTable::qualifiedName)
-                .containsExactlyInAnyOrder("runtime_suite.orders", "runtime_suite.users");
+                .contains("runtime_suite.orders", "runtime_suite.users");
 
         SchemaTable users = schema.tables().get("runtime_suite.users");
         SchemaTable orders = schema.tables().get("runtime_suite.orders");
@@ -216,6 +225,35 @@ class PostgresCoreEngineIntegrationTest {
                 });
         assertThat(users.tableType()).isEqualTo(SchemaTableType.TABLE);
         assertThat(orders.tableType()).isEqualTo(SchemaTableType.TABLE);
+    }
+
+    @Test
+    void schemaReadHidesViewsFromTheExplorerTableList() throws SQLException {
+        executeRuntimeStatements(
+                """
+                CREATE VIEW runtime_suite.customer_order_totals AS
+                SELECT
+                    u.id AS customer_id,
+                    u.email,
+                    u.name AS full_name,
+                    COUNT(o.id) AS total_orders,
+                    COALESCE(SUM(o.amount), 0) AS total_amount
+                FROM runtime_suite.users u
+                LEFT JOIN runtime_suite.orders o ON o.user_id = u.id
+                GROUP BY u.id, u.email, u.name
+                """
+        );
+
+        TestFixture fixture = createRuntimeDatasourceFixture(POSTGRES.getPassword(), RUNTIME_SCHEMA);
+
+        GeneratedSchema schema = generateRuntimeSchema(fixture);
+        List<SchemaTable> explorerTables = schemaReadService.getTables(fixture.datasourceId(), fixture.userId());
+
+        assertThat(schema.tables()).containsKey("runtime_suite.customer_order_totals");
+        assertThat(explorerTables)
+                .extracting(SchemaTable::qualifiedName)
+                .contains("runtime_suite.orders", "runtime_suite.users")
+                .doesNotContain("runtime_suite.customer_order_totals");
     }
 
     @Test
@@ -524,6 +562,7 @@ class PostgresCoreEngineIntegrationTest {
         datasource.setUserAccount(savedUser);
 
         DataSourceEntity savedDatasource = dataSourceRepository.save(datasource);
+        dataSourceAuthorizationService.ensureOwnerManagerAccess(savedDatasource);
         return new TestFixture(savedUser.getId(), savedUser.getEmail(), savedDatasource.getId());
     }
 

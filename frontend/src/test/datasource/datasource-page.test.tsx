@@ -26,6 +26,25 @@ const adminUsersResponse = [
   },
 ] as const
 
+const datasourceAccessResponse = [
+  {
+    userId: 101,
+    username: 'member1',
+    email: 'member1@test.com',
+    globalRole: 'MEMBER',
+    accessRole: 'MANAGER',
+    createdAt: '2026-04-13T11:30:00.000Z',
+  },
+  {
+    userId: 102,
+    username: 'viewer1',
+    email: 'viewer1@test.com',
+    globalRole: 'VIEWER',
+    accessRole: 'VIEWER',
+    createdAt: '2026-04-13T12:00:00.000Z',
+  },
+] as const
+
 describe('datasource catalog', () => {
   it('renders datasource records returned by the backend', async () => {
     const fetchMock = installFetchMock()
@@ -404,6 +423,212 @@ describe('datasource catalog', () => {
     expect(await screen.findByText('User management')).toBeInTheDocument()
     expect(await screen.findByText('member1')).toBeInTheDocument()
     expect(screen.queryByText('forgeql-owner')).not.toBeInTheDocument()
+  })
+
+  it('shows admin-only controls only for datasources owned by that admin', async () => {
+    const fetchMock = installFetchMock()
+    const ownedDatasource = buildDatasource({
+      id: 18,
+      displayName: 'Owned warehouse',
+      ownerUserId: 1,
+    })
+    const foreignDatasource = buildDatasource({
+      id: 19,
+      displayName: 'Shared warehouse',
+      ownerUserId: 99,
+    })
+
+    fetchMock.route(
+      'GET',
+      '/api/account/me',
+      createJsonResponse(buildCurrentUser({ globalRole: 'ADMIN' }))
+    )
+    fetchMock.route('GET', '/api/admin/users', createJsonResponse(adminUsersResponse))
+    fetchMock.route(
+      'GET',
+      '/api/datasource',
+      createJsonResponse([ownedDatasource, foreignDatasource])
+    )
+
+    renderAppAt('/datasource')
+
+    const ownedCard = (await screen.findByText('Owned warehouse')).closest('article')
+    const foreignCard = screen.getByText('Shared warehouse').closest('article')
+
+    expect(ownedCard).not.toBeNull()
+    expect(foreignCard).not.toBeNull()
+    expect(
+      within(ownedCard as HTMLElement).getByRole('button', { name: 'Manage access' })
+    ).toBeInTheDocument()
+    expect(
+      within(foreignCard as HTMLElement).queryByRole('button', {
+        name: 'Manage access',
+      })
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('User management')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add datasource' })).not.toBeInTheDocument()
+  })
+
+  it('sends the role update payload from the user management table', async () => {
+    const fetchMock = installFetchMock()
+    const roleUpdates: unknown[] = []
+
+    fetchMock.route(
+      'GET',
+      '/api/account/me',
+      createJsonResponse(buildCurrentUser({ globalRole: 'MAIN_ADMIN' }))
+    )
+    fetchMock.route('GET', '/api/datasource', createJsonResponse([buildDatasource()]))
+    fetchMock.route('GET', '/api/admin/users', createJsonResponse(adminUsersResponse))
+    fetchMock.route('PUT', '/api/admin/users/101/role', (request) => {
+      roleUpdates.push(request.bodyJson)
+      return new Response(null, { status: 200 })
+    })
+
+    renderAppAt('/datasource')
+
+    const actor = userEvent.setup()
+    const memberLabel = await screen.findByText('member1')
+    const memberRow = memberLabel.closest('tr')
+    expect(memberRow).not.toBeNull()
+    await actor.click(
+      within(memberRow as HTMLElement).getByLabelText('Global role for member1')
+    )
+    await actor.click(await screen.findByRole('option', { name: /^Admin/ }))
+    await actor.click(
+      within(memberRow as HTMLElement).getByRole('button', { name: 'Save' })
+    )
+
+    expect(roleUpdates).toEqual([{ globalRole: 'ADMIN' }])
+  })
+
+  it('sends datasource access assignment, update, and removal calls from the access modal', async () => {
+    const fetchMock = installFetchMock()
+    const datasource = buildDatasource({
+      id: 20,
+      displayName: 'Warehouse',
+      ownerUserId: 1,
+    })
+    let accessList = [...datasourceAccessResponse]
+    const assignedBodies: unknown[] = []
+    const updatedBodies: unknown[] = []
+    const removedUsers: number[] = []
+
+    fetchMock.route(
+      'GET',
+      '/api/account/me',
+      createJsonResponse(buildCurrentUser({ globalRole: 'MAIN_ADMIN' }))
+    )
+    fetchMock.route('GET', '/api/admin/users', createJsonResponse(adminUsersResponse))
+    fetchMock.route('GET', '/api/datasource', createJsonResponse([datasource]))
+    fetchMock.route(
+      'GET',
+      '/api/admin/datasources/20/access',
+      () => createJsonResponse(accessList)
+    )
+    fetchMock.route('POST', '/api/admin/datasources/20/access', (request) => {
+      assignedBodies.push(request.bodyJson)
+      accessList = [
+        ...accessList,
+        {
+          userId: 103,
+          username: 'member2',
+          email: 'member2@test.com',
+          globalRole: 'MEMBER',
+          accessRole: 'VIEWER',
+          createdAt: '2026-04-13T12:30:00.000Z',
+        },
+      ]
+      return new Response(null, { status: 201 })
+    })
+    fetchMock.route('PUT', '/api/admin/datasources/20/access/101', (request) => {
+      updatedBodies.push(request.bodyJson)
+      accessList = accessList.map((record) =>
+        record.userId === 101 ? { ...record, accessRole: 'VIEWER' } : record
+      )
+      return new Response(null, { status: 200 })
+    })
+    fetchMock.route('DELETE', '/api/admin/datasources/20/access/102', () => {
+      removedUsers.push(102)
+      accessList = accessList.filter((record) => record.userId !== 102)
+      return new Response(null, { status: 204 })
+    })
+
+    renderAppAt('/datasource')
+
+    const actor = userEvent.setup()
+    await actor.click(await screen.findByRole('button', { name: 'Manage access' }))
+
+    const userIdInput = await screen.findByPlaceholderText('42')
+    const accessModal = userIdInput.closest('.surface-panel')
+    expect(accessModal).not.toBeNull()
+
+    await actor.type(userIdInput, '103')
+    await actor.click(
+      within(accessModal as HTMLElement).getByRole('button', {
+        name: 'Assign access',
+      })
+    )
+    expect(assignedBodies).toEqual([{ userId: 103, accessRole: 'VIEWER' }])
+    expect(await within(accessModal as HTMLElement).findByText('member2')).toBeInTheDocument()
+
+    const memberRow = within(accessModal as HTMLElement)
+      .getByText('member1')
+      .closest('tr')
+    expect(memberRow).not.toBeNull()
+    await actor.click(
+      within(memberRow as HTMLElement).getByLabelText('Role for member1')
+    )
+    await actor.click(await screen.findByRole('option', { name: /^Viewer/ }))
+    await actor.click(
+      within(memberRow as HTMLElement).getByRole('button', { name: 'Update' })
+    )
+    expect(updatedBodies).toEqual([{ accessRole: 'VIEWER' }])
+
+    const viewerRow = within(accessModal as HTMLElement)
+      .getByText('viewer1')
+      .closest('tr')
+    expect(viewerRow).not.toBeNull()
+    await actor.click(
+      within(viewerRow as HTMLElement).getByRole('button', { name: 'Remove' })
+    )
+    expect(removedUsers).toEqual([102])
+    await within(accessModal as HTMLElement).findByText('member2')
+    expect(
+      within(accessModal as HTMLElement).queryByText('viewer1')
+    ).not.toBeInTheDocument()
+  })
+
+  it('disables admin-to-admin role editing for non-main-admin actors', async () => {
+    const fetchMock = installFetchMock()
+    const users = [
+      ...adminUsersResponse,
+      {
+        id: 102,
+        username: 'admin2',
+        email: 'admin2@test.com',
+        globalRole: 'ADMIN',
+        createdAt: '2026-04-13T11:45:00.000Z',
+      },
+    ]
+
+    fetchMock.route(
+      'GET',
+      '/api/account/me',
+      createJsonResponse(buildCurrentUser({ globalRole: 'ADMIN' }))
+    )
+    fetchMock.route('GET', '/api/admin/users', createJsonResponse(users))
+    fetchMock.route('GET', '/api/datasource', createJsonResponse([buildDatasource()]))
+
+    renderAppAt('/datasource')
+
+    expect(await screen.findByText('admin2')).toBeInTheDocument()
+    expect(
+      screen.getByText('Only the main admin can change the role of another admin.')
+    ).toBeInTheDocument()
+    expect(
+      screen.getByLabelText('Global role for admin2')
+    ).toBeDisabled()
   })
 
   it('does not show success feedback when datasource refresh fails', async () => {
